@@ -38,4 +38,5 @@ func main() {
 	for i := 0; i < len(s); i++ {
 		fmt.Println("range s[", i, "]", s[i].Value())
 	}
+
 }
