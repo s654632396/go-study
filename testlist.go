@@ -16,8 +16,6 @@ func main() {
 	l.RPush("xxxx")
 	l.RPush("shimakaze")
 
-	// fmt.Printf("%v \n", l)
-
 	fmt.Println(l.Index(3).Value())
 	fmt.Println(l.Index(-3).Value())
 	fmt.Println(l.Index(-1).Value())
