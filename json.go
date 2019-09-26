@@ -22,7 +22,7 @@ func main() {
 }
 
 type ServerList struct {
-	Servers []Server
+	Servers []Server `json:"servers"`
 }
 
 type Server struct {
