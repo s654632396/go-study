@@ -2,11 +2,20 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
 
 func main() {
+
+	/*
+	 * Data source format:
+	 * user@unix(/path/to/socket)/dbname?charset=utf8
+	 * user:password@tcp(localhost:5555)/dbname?charset=utf8
+	 * user:password@/dbname
+	 * user:password@tcp([de:ad:be:ef::ca:fe]:80)/dbname
+	 */
 
 	db, err := gorm.Open("mysql", "root:123456@tcp(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local")
 	defer db.Close()
@@ -37,7 +46,7 @@ func main() {
 
 type Test struct {
 	gorm.Model
-	Id   int64  `gorm:"AUTO_INCREMENT"`
+	ID   int64  `gorm:"AUTO_INCREMENT"`
 	Name string `gorm:"size:255"`
 }
 
