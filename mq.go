@@ -8,10 +8,12 @@ import (
 )
 
 // WorkNum worker numbers
-const WorkNum = 4
+type WorkerID int16
+
+const WorkNum WorkerID = 4
 
 type Task struct {
-	ID       int32
+	ID       WorkerID
 	Status   string
 	In       string
 	Out      string
@@ -35,10 +37,10 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// producer
-	for i := 0; i < 30; i++ {
+	for i := 1; i <= 30; i++ {
 		ch <- &Task{
-			ID:       int32(i),
-			Status:   "undo",
+			ID:       WorkerID(i),
+			Status:   "wait",
 			In:       string(rand.Intn(10000)),
 			Out:      "",
 			CreateAt: time.Now(),
@@ -51,11 +53,12 @@ func main() {
 	fmt.Println("all task done.")
 }
 
-func startWorkers(num int, wg *sync.WaitGroup, ch chan *Task) {
-	for i := 1; i <= num; i++ {
+func startWorkers(num WorkerID, wg *sync.WaitGroup, ch chan *Task) {
+	var wid WorkerID = 1
+	for ; wid <= num; wid++ {
 		wg.Add(1)
-		fmt.Println("start worker :", i)
-		go func(wg *sync.WaitGroup, ch chan *Task, workId int16) {
+		fmt.Println("start worker :", wid)
+		go func(wg *sync.WaitGroup, ch chan *Task, workId WorkerID) {
 			defer wg.Done()
 			//
 			for t := range ch {
@@ -66,6 +69,6 @@ func startWorkers(num int, wg *sync.WaitGroup, ch chan *Task) {
 				t.run()
 				fmt.Printf("done task(%d). \n", t.ID)
 			}
-		}(wg, ch, int16(i))
+		}(wg, ch, wid)
 	}
 }
