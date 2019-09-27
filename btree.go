@@ -16,7 +16,23 @@ func main() {
 	fmt.Printf("btree min node: %#v \n", bt.Min().value)
 	rand.Seed(int64(time.Now().Nanosecond()))
 	var dist int64 = int64(rand.Intn(100))
-	fmt.Printf("find %d in tree, %v", dist, bt.Find(dist))
+	fmt.Printf("find %d in tree, %v\n", dist, bt.Find(dist))
+	var f = func(n *Node) {
+		fmt.Printf("%d\t", n.value)
+	}
+	var list []int64
+	f = func(n *Node) {
+		list = append(list, n.value)
+	}
+	bt.InOrderTraversal(f)
+	fmt.Printf("\n in-order traverse binary tree -----------------------------\n%#v\n", list)
+	list = nil
+	bt.PreOrderTraversal(f)
+	fmt.Printf("\n pre-order traverse binary tree-----------------------------\n%#v\n", list)
+	list = nil
+	bt.PostOrderTraversal(f)
+	fmt.Printf("\n post-order traverse binary tree-----------------------------\n%#v\n", list)
+	list = nil
 }
 
 // Node B-Tree Node Struct
@@ -116,11 +132,51 @@ func (bt *BTree) Find(value int64) (node *Node) {
 	}
 }
 
-// InOrderTraversal 遍历树
-func (bt *BTree) InOrderTraversal() {
+// InOrderTraversal 中序遍历树
+//left ->  root -> right
+func (bt *BTree) InOrderTraversal(cb func(n *Node)) {
+	inOrderTraverse(bt.RootNode, cb)
+	// fmt.Printf("\n")
+}
+
+func inOrderTraverse(node *Node, cb func(n *Node)) {
+	if node != nil {
+		inOrderTraverse(node.left, cb)
+		// fmt.Printf("%d  ", node.value)
+		cb(node)
+		inOrderTraverse(node.right, cb)
+	}
+}
+
+// PreOrderTraversal 先序遍历树
+// root -> left -> right
+func (bt *BTree) PreOrderTraversal(cb func(n *Node)) {
+	preOrderTraverse(bt.RootNode, cb)
+	// fmt.Printf("\n")
+}
+
+func preOrderTraverse(node *Node, cb func(n *Node)) {
+	if node != nil {
+		// fmt.Printf("%d  ", node.value)
+		cb(node)
+		preOrderTraverse(node.left, cb)
+		preOrderTraverse(node.right, cb)
+	}
 
 }
 
-func (bt *BTree) PreOrderTraversal() {
+// PostOrderTraversal 后续遍历树
+// right -> left -> root
+func (bt *BTree) PostOrderTraversal(cb func(n *Node)) {
+	postOrderTraverse(bt.RootNode, cb)
+	// fmt.Printf("\n")
+}
 
+func postOrderTraverse(node *Node, cb func(n *Node)) {
+	if node != nil {
+		postOrderTraverse(node.right, cb)
+		postOrderTraverse(node.left, cb)
+		// fmt.Printf("%d  ", node.value)
+		cb(node)
+	}
 }
