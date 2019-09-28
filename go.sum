@@ -34,6 +34,7 @@ github.com/golang/mock v1.2.0/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfb
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
+github.com/google/go-cmp v0.2.0 h1:+dTQ8DZQJz0Mb/HjFlkptS1FeQ4cWSnN941F8aEG4SQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/google/martian v2.1.0+incompatible/go.mod h1:9I4somxYTbIHy5NJKHRl3wXiIaQGbYVAs8BPL6v8lEs=
 github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
@@ -76,6 +77,10 @@ github.com/prometheus/procfs v0.0.0-20190117184657-bf6a532e95b1/go.mod h1:c3At6R
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/s654632396/doublelist v0.0.0-20190925111446-8735c5d97a04 h1:HxM0fYTzsFHzm8fYueYPrpSUFe9BRzxzgFxnvhiYn1k=
 github.com/s654632396/doublelist v0.0.0-20190925111446-8735c5d97a04/go.mod h1:/4ZWbiFaAqz6oshXfl345RwoU4/3C0X299hQYVkKe9w=
+github.com/s654632396/pkg/adt v0.0.0-20190928150342-65fff11566b1 h1:1yQ91+jxXslItwXdvAf7Dz6oOmMzudB+1GS76b1sFXM=
+github.com/s654632396/pkg/adt v0.0.0-20190928150342-65fff11566b1/go.mod h1:CSUYkftVTrKYHQx/OCzcMTxapVHe+O4xRm6/sfiMZ1o=
+github.com/s654632396/pkg/adt v0.0.0-20190928155848-fa98018e95fa h1:GgUPdfzLUHjnY4ghSu+B6uDJmuH58FI7J535qsJ7NTw=
+github.com/s654632396/pkg/adt v0.0.0-20190928155848-fa98018e95fa/go.mod h1:CSUYkftVTrKYHQx/OCzcMTxapVHe+O4xRm6/sfiMZ1o=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271 h1:WhxRHzgeVGETMlmVfqhRn8RIeeNoPr2Czh33I4Zdccw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
