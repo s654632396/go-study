@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	// "os"
 	"strconv"
 	"strings"
 	"time"
@@ -10,23 +11,16 @@ import (
 
 func main() {
 	var bt = NewBTree()
-	// var items []int64 = []int64{29, 1, 35, 32, 11, 34, 54, 12, 2, 5, 9, 6, 45, 17, 33}
-	// for _, item := range items {
-	// 	bt.Add(item)
-	// }
+	var items []int64 = []int64{29, 1, 35, 32, 11, 34, 54, 12, 2, 5, 9, 6, 45, 17, 33}
+	for _, item := range items {
+		bt.Add(item, item+10000)
+	}
 	var seed int = time.Now().Nanosecond()
 	rand.Seed(int64(seed))
-	for i := 0; i < 80; i++ {
-		value := int64(rand.Intn(100))
-		bt.Add(value, value+100000)
-	}
-	// fmt.Printf("btree max node: %#v \n", bt.Max().value)
-	// fmt.Printf("btree min node: %#v \n", bt.Min().value)
-	// var dist int64 = int64(rand.Intn(100))
-	// src := bt.Find(dist)
-	// fmt.Printf("find %d in tree,value=%v,item=%v \n", dist, src.value, src.item)
-	// fmt.Printf("BinaryTree len: %d \n", bt.Len)
-	bt.String()
+	// for i := 0; i < 80; i++ {
+	// 	value := int64(rand.Intn(100))
+	// 	bt.Add(value, value+100000)
+	// }
 
 	var list []int64
 	var f1 = func(n *Node) {
@@ -34,14 +28,18 @@ func main() {
 	}
 	bt.InOrderTraversal(f1)
 	fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
+
+	bt.String()
+	unlink := bt.Find(29)
+	if unlink != nil {
+		unlinked := bt.Unlink(unlink)
+		fmt.Printf("SUCCESSFULLY UNLINKED NODE: %d\n", unlinked.value)
+		bt.String()
+		bt.InOrderTraversal(f1)
+		fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
+	}
+
 	return
-	list = nil
-	bt.PreOrderTraversal(f1)
-	fmt.Printf("\n pre-order traverse binary tree-----------------------------\n%#v\n", list)
-	list = nil
-	bt.PostOrderTraversal(f1)
-	fmt.Printf("\n post-order traverse binary tree-----------------------------\n%#v\n", list)
-	list = nil
 }
 
 // Item : node storage values
@@ -53,8 +51,11 @@ type Node struct {
 	item  Item
 	left  *Node
 	right *Node
-	pos   int8 // 0 tree-root 1 left 2 right
+	pos   int8 //标记节点相对父节点的位置 0 tree-root, 1 left, 2 right
 }
+
+// NodeList :
+type NodeList []*Node
 
 // BTree Struct
 type BTree struct {
@@ -76,13 +77,13 @@ func (bt *BTree) Add(value int64, item Item) {
 		return
 	}
 
-	if bt.RootNode.Insert(&node) {
+	if bt.RootNode.insert(&node) {
 		bt.Len++
 	}
 }
 
 // Insert : insert node
-func (node *Node) Insert(n *Node) (b bool) {
+func (node *Node) insert(n *Node) (b bool) {
 	b = false
 	if n.value < node.value {
 		//  把n插入node的左边
@@ -90,7 +91,7 @@ func (node *Node) Insert(n *Node) (b bool) {
 			n.pos = 1 // mark node as left Node
 			node.left = n
 		} else {
-			node.left.Insert(n)
+			node.left.insert(n)
 		}
 		b = true
 		return
@@ -101,13 +102,112 @@ func (node *Node) Insert(n *Node) (b bool) {
 			n.pos = 2 // mark node as right Node
 			node.right = n
 		} else {
-			node.right.Insert(n)
+			node.right.insert(n)
 		}
 		b = true
 		return
 	}
 	b = false
 	return
+}
+
+// Unlink : Remove a node from binary tree
+func (bt *BTree) Unlink(un *Node) (unlink *Node) {
+	if un == nil {
+		return
+	}
+	unlink = un
+	var parent *Node = bt.FindParent(unlink)
+	// if unlinked & reduce length of binary tree
+	defer func() {
+		// 解除链接的点，左右子树指针置为 nil
+		unlink.left, unlink.right = nil, nil
+		// fmt.Printf("unlink-node=%d, left=%+v,right=%+v,pos=%d\n", unlink.value, unlink.left, unlink.right, unlink.pos)
+		bt.Len--
+	}()
+	// leftTreeRoot, RightTreeRoot, unlinkedNodePosition
+	left, right, pos := unlink.left, unlink.right, unlink.pos
+	// fmt.Printf("parent=%+v,left=%+v,right=%+v,pos=%d\n", parent, left, right, pos)
+
+	// relink
+	var node *Node
+	// ----- deal relink -------
+
+	if left == nil && right == nil {
+		// case 1: unlink node is a leaf node
+		node = nil
+		link(parent, node, pos)
+	} else if (left != nil && right == nil) || (left == nil && right != nil) {
+		// case 2: unlink node : single_child --- unlink --- parent
+		node = left
+		if node == nil {
+			node = right
+		}
+		link(parent, node, pos)
+	} else if left != nil && right != nil {
+		// case 3: unlink node : both_child --- unlink --- parent
+		// 1. try to find leftChildTree nearest node of unlink node, mark it as "nodeLN"
+		nodeLN := findLeftTreeNearestNode(unlink)
+		if nodeLN != nil {
+			fmt.Printf("nodeLN=%d\n", nodeLN.value)
+		}
+		if nodeLN == left {
+			left = left.left
+		}
+		// 2. unlink "NodeLN"
+		bt.Unlink(nodeLN)
+		fmt.Printf("nodeLN = %+v\n", nodeLN)
+		if parent != nil {
+			// 3. unlink which node will be unlinked
+			// link(parent, nil, pos) // 不是必要操作
+			// 4. link parent and "NodeLN"
+			link(parent, nodeLN, pos)
+		}
+		// 5. link "nodeLN" and LeftChildTree (left side)
+		link(nodeLN, left, 1)
+		// 6. link "nodeLN" and RightChildTree (right side)
+		link(nodeLN, right, 2)
+		node = nodeLN
+	}
+
+	// ------------------------
+	if bt.RootNode == unlink {
+		// 变更新 root
+		bt.RootNode = node
+	}
+	fmt.Printf("new node is %d\n", node)
+
+	return
+}
+
+// 从节点的左子树上找最近节点
+// *查找左子树上最右节点
+func findLeftTreeNearestNode(node *Node) (dist *Node) {
+	if node.left == nil {
+		return
+	}
+	// 取左树根
+	dist = node.left
+	for {
+		// 查最右
+		if dist.right == nil {
+			break
+		}
+		dist = dist.right
+	}
+	return
+}
+
+func link(parent, child *Node, pos int8) {
+	if pos == 1 {
+		parent.left = child
+	} else {
+		parent.right = child
+	}
+	if child == nil {
+		return
+	}
+	child.pos = pos
 }
 
 // Min : return minium node of binary tree
@@ -131,6 +231,42 @@ func (bt *BTree) Max() (node *Node) {
 			continue
 		}
 		return node
+	}
+}
+
+// FindParent : find parent node
+func (bt *BTree) FindParent(child *Node) (parent *Node) {
+	stack := bt.FindStack(child)
+	fmt.Printf("[")
+	for _, n := range stack {
+		fmt.Printf("%d \t", n.value)
+	}
+	fmt.Printf("]\n")
+	if len(stack) == 0 {
+		return
+	}
+	parent = stack[len(stack)-1:][0]
+	return
+}
+
+// FindStack : find Node Stack By Child
+func (bt *BTree) FindStack(child *Node) (stack NodeList) {
+	visit := bt.RootNode
+	for {
+		if visit.value == child.value {
+			return
+		}
+		if visit.value > child.value {
+			//  当前节点比目标值大， 则查找当前节点到左树
+			stack = append(stack, visit)
+			visit = visit.left
+		} else {
+			stack = append(stack, visit)
+			visit = visit.right
+		}
+		if visit == nil {
+			return
+		}
 	}
 }
 
@@ -159,6 +295,9 @@ func (bt *BTree) InOrderTraversal(cb func(n *Node)) {
 	inOrderTraverse(bt.RootNode, cb)
 }
 
+// BreakTraverse :break down the traverse
+const BreakTraverse int = 114514
+
 func inOrderTraverse(node *Node, cb func(n *Node)) {
 	if node != nil {
 		inOrderTraverse(node.left, cb)
@@ -183,15 +322,15 @@ func preOrderTraverse(node *Node, cb func(n *Node)) {
 }
 
 // PostOrderTraversal 后续遍历树
-//  right -> left -> root
+// left ->  right -> root
 func (bt *BTree) PostOrderTraversal(cb func(n *Node)) {
 	postOrderTraverse(bt.RootNode, cb)
 }
 
 func postOrderTraverse(node *Node, cb func(n *Node)) {
 	if node != nil {
-		postOrderTraverse(node.right, cb)
 		postOrderTraverse(node.left, cb)
+		postOrderTraverse(node.right, cb)
 		cb(node)
 	}
 }
@@ -221,9 +360,6 @@ func levelOrderTraverse(nodes []*Node, level int, cb func(n *Node, lv int, idx i
 		levelOrderTraverse(nextNodes, level, cb)
 	}
 }
-
-// NodeList :
-type NodeList []*Node
 
 // String 输出二叉树
 func (bt *BTree) String() {
