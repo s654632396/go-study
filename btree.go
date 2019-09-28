@@ -288,9 +288,6 @@ func (bt *BTree) InOrderTraversal(cb func(n *Node)) {
 	inOrderTraverse(bt.RootNode, cb)
 }
 
-// BreakTraverse :break down the traverse
-const BreakTraverse int = 114514
-
 func inOrderTraverse(node *Node, cb func(n *Node)) {
 	if node != nil {
 		inOrderTraverse(node.left, cb)
