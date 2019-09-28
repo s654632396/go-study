@@ -11,23 +11,23 @@ import (
 
 func main() {
 	var bt = NewBTree()
-	var items []int64 = []int64{29, 1, 35, 32, 11, 34, 54, 12, 2, 5, 9, 6, 45, 17, 33}
+	var items []NodeValue = []NodeValue{29, 1, 35, 32, 11, 34, 54, 12, 2, 5, 9, 6, 45, 17, 33}
 	for _, item := range items {
-		bt.Add(item, item+10000)
+		bt.Add(NodeValue(item), item+10000)
 	}
 	var seed int = time.Now().Nanosecond()
 	rand.Seed(int64(seed))
 	// for i := 0; i < 80; i++ {
-	// 	value := int64(rand.Intn(100))
+	// 	value := NodeValue(rand.Intn(100))
 	// 	bt.Add(value, value+100000)
 	// }
 
-	var list []int64
+	var list []NodeValue
 	var f1 = func(n *Node) {
 		list = append(list, n.value)
 	}
 	bt.InOrderTraversal(f1)
-	fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
+	// fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
 
 	bt.String()
 	unlink := bt.Find(29)
@@ -36,7 +36,7 @@ func main() {
 		fmt.Printf("SUCCESSFULLY UNLINKED NODE: %d\n", unlinked.value)
 		bt.String()
 		bt.InOrderTraversal(f1)
-		fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
+		// fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
 	}
 
 	return
@@ -45,10 +45,13 @@ func main() {
 // Item : node storage values
 type Item interface{}
 
+// NodeValue : node indexing value
+type NodeValue uint64
+
 // Node B-Tree Node Struct
 type Node struct {
-	value int64
-	item  Item
+	value NodeValue // node indexing valuate
+	item  Item      // Node storage item
 	left  *Node
 	right *Node
 	pos   int8 //标记节点相对父节点的位置 0 tree-root, 1 left, 2 right
@@ -59,8 +62,8 @@ type NodeList []*Node
 
 // BTree Struct
 type BTree struct {
-	RootNode *Node
-	Len      int
+	RootNode *Node // Root Of Binary Tree
+	Len      int   // Size Of Binary Tree
 }
 
 // NewBTree Create Binary Tree
@@ -70,7 +73,7 @@ func NewBTree() (btree *BTree) {
 }
 
 // Add : add a new node to binary tree
-func (bt *BTree) Add(value int64, item Item) {
+func (bt *BTree) Add(value NodeValue, item Item) {
 	var node Node = Node{value: value, item: item}
 	if bt.RootNode == nil {
 		bt.RootNode = &node
@@ -148,15 +151,12 @@ func (bt *BTree) Unlink(un *Node) (unlink *Node) {
 		// case 3: unlink node : both_child --- unlink --- parent
 		// 1. try to find leftChildTree nearest node of unlink node, mark it as "nodeLN"
 		nodeLN := findLeftTreeNearestNode(unlink)
-		if nodeLN != nil {
-			fmt.Printf("nodeLN=%d\n", nodeLN.value)
-		}
 		if nodeLN == left {
 			left = left.left
 		}
 		// 2. unlink "NodeLN"
 		bt.Unlink(nodeLN)
-		fmt.Printf("nodeLN = %+v\n", nodeLN)
+		// fmt.Printf("nodeLN = %+v\n", nodeLN)
 		if parent != nil {
 			// 3. unlink which node will be unlinked
 			// link(parent, nil, pos) // 不是必要操作
@@ -175,8 +175,6 @@ func (bt *BTree) Unlink(un *Node) (unlink *Node) {
 		// 变更新 root
 		bt.RootNode = node
 	}
-	fmt.Printf("new node is %d\n", node)
-
 	return
 }
 
@@ -237,11 +235,6 @@ func (bt *BTree) Max() (node *Node) {
 // FindParent : find parent node
 func (bt *BTree) FindParent(child *Node) (parent *Node) {
 	stack := bt.FindStack(child)
-	fmt.Printf("[")
-	for _, n := range stack {
-		fmt.Printf("%d \t", n.value)
-	}
-	fmt.Printf("]\n")
 	if len(stack) == 0 {
 		return
 	}
@@ -271,7 +264,7 @@ func (bt *BTree) FindStack(child *Node) (stack NodeList) {
 }
 
 // Find : find Node By value
-func (bt *BTree) Find(value int64) (node *Node) {
+func (bt *BTree) Find(value NodeValue) (node *Node) {
 	node = bt.RootNode
 	for {
 		if node.value == value {
