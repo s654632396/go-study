@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/s654632396/pkg/adt"
 	"math/rand"
 	"time"
+
+	"github.com/s654632396/pkg/adt"
 )
 
 func main() {

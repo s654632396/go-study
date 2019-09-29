@@ -8,6 +8,7 @@ require (
 	github.com/s654632396/doublelist v0.0.0-20190925111446-8735c5d97a04
 	github.com/s654632396/pkg/adt v0.0.0-20190928155848-fa98018e95fa
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
+	golang.org/x/tools v0.0.0-20190929041059-e7abfedfabcf // indirect
 )
 
 // replace github.com/s654632396/doublelist => /mnt/d/env/go/src/s654632396/pkg/doublelist
