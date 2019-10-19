@@ -24,8 +24,8 @@ func main() {
 	var f1 = func(n *adt.Node) {
 		list = append(list, n.Value())
 	}
-	// bt.InOrderTraversal(f1)
-	// fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
+	bt.InOrderTraversal(f1)
+	fmt.Printf("in-order traverse binary tree -----------------------------\n%+v\n", list)
 
 	bt.String()
 	unlink := bt.Find(29)
@@ -34,7 +34,7 @@ func main() {
 		fmt.Printf("SUCCESSFULLY UNLINKED NODE: %d\n", unlinked)
 		bt.String()
 		bt.InOrderTraversal(f1)
-		// fmt.Printf("in-order traverse binary tree -----------------------------\n%#v\n", list)
+		fmt.Printf("in-order traverse binary tree -----------------------------\n%+v\n", list)
 	}
 
 	return
