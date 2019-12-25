@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 // 写着玩玩
@@ -49,21 +50,21 @@ var CardMap = map[string]int64{
 func main() {
 	var handCardstring string = "123m123p22334s11z"
 	var handCard = ReadHandCard(handCardstring)
-	fmt.Printf("handCard is : %+v\n", handCard)
+	// fmt.Printf("handCard is : %+v\n", handCard)
 	ToUnicode(handCard)
 	ReadTallyCount(handCard)
 
-	handCardstring = "119m19p19s123456z"
-	handCard = ReadHandCard(handCardstring)
-	fmt.Printf("handCard is : %+v\n", handCard)
-	ToUnicode(handCard)
-	ReadTallyCount(handCard)
+	// handCardstring = "119m19p19s123456z"
+	// handCard = ReadHandCard(handCardstring)
+	// //fmt.Printf("handCard is : %+v\n", handCard)
+	// ToUnicode(handCard)
+	// ReadTallyCount(handCard)
 
-	handCardstring = "119m1299p133444z"
-	handCard = ReadHandCard(handCardstring)
-	fmt.Printf("handCard is : %+v\n", handCard)
-	ToUnicode(handCard)
-	ReadTallyCount(handCard)
+	// handCardstring = "119m1299p133444z"
+	// handCard = ReadHandCard(handCardstring)
+	// //fmt.Printf("handCard is : %+v\n", handCard)
+	// ToUnicode(handCard)
+	// ReadTallyCount(handCard)
 }
 
 // ToUnicode Output of Unicode
@@ -96,13 +97,14 @@ func ReadHandCard(hcs string) (ret []string) {
 
 // ReadTallyCount 读取向听数 max = 6, min = 0
 func ReadTallyCount(hc []string) (tc int) {
-	thirteenTallyCount := getThirteenTallyCount(hc)
+	// thirteenTallyCount := getThirteenTallyCount(hc)
+	// fmt.Printf("国士无双向听听数为: %d \n", thirteenTallyCount)
 
-	fmt.Printf("国士无双向听听数为: %d \n", thirteenTallyCount)
+	// sevenPairsCount := getSevenPairsCount(hc)
+	// fmt.Printf("七对子向听数为: %d \n", sevenPairsCount)
 
-	sevenPairsCount := getSevenPairsCount(hc)
-	fmt.Printf("七对子向听数为: %d \n", sevenPairsCount)
-
+	nornalTallyCount := getNormalTallyCount(hc)
+	fmt.Printf("普通牌型向听数为: %d \n", nornalTallyCount)
 	return
 }
 
@@ -149,6 +151,41 @@ func getSevenPairsCount(hc []string) (ret int) {
 
 // getNormalTallyCount 取正常手顺牌型向听
 func getNormalTallyCount(hc []string) (ret int) {
+	ret = 4
+	// fmt.Println(hc)
+	// 和牌牌型要满足 3n * 4 + 2p的公式
+	// 3n 是连续的3张数牌或者相同的牌
+	// 2p 是任意相同的2枚牌
+
+	// 如果定义听牌向听数 X = 0
+	// 有且仅有一个2p时，算  - 1
+	// 每个序列每满足一个3n时， 算 - 1
+	// 则 Ymax - 1 * 4 = X ,  Ymax = 4
+
+	// fmt.Println(hc)
+	// var itc = 4 // 起始向听数 ***再大的向听也记为4向听
+	//
+	var (
+		typeM []int
+		typeP []int
+		typeS []int
+		typeZ []int
+	)
+	for _, c := range hc {
+		cardNum, cardType := string(c[0]), c[1]
+		cardNumInt, _ := strconv.Atoi(cardNum)
+		switch cardType {
+		case 'm':
+			typeM = append(typeM, cardNumInt)
+		case 'p':
+			typeP = append(typeP, cardNumInt)
+		case 's':
+			typeS = append(typeS, cardNumInt)
+		case 'z':
+			typeZ = append(typeZ, cardNumInt)
+		}
+	}
+	fmt.Printf("typeM=%+v, typeP=%+v, typeS=%+v, typeZ=%+v \n", typeM, typeP, typeS, typeZ)
 	return
 }
 
