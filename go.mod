@@ -3,6 +3,7 @@ module started
 go 1.13
 
 require (
+	github.com/MichaelTJones/walk v0.0.0-20161122175330-4748e29d5718 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b
 	github.com/docker/docker v1.13.1
 	github.com/g3n/engine v0.1.0
