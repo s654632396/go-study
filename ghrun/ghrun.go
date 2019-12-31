@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"gopkg.in/godo.v2/glob"
+	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+
+	"gopkg.in/godo.v2/glob"
 )
 
 type changeIdentify struct {
@@ -20,75 +25,131 @@ type changeIdentify struct {
 // CfgBlock reading config block from config file
 type CfgBlock struct {
 	// block name
-	name string
+	Name string `json:"name"`
 	// listen path
-	path string
+	Path string `json:"path"`
 	// execute specific command when path which listened changed.
-	execute string
+	Execute string `json:"execute"`
 	// execute mode ,valid values: forceground(前台) background(后台,用于启动守护进程之类的)
-	mode string
+	Mode string `json:"mode"`
 	// regist commands
-	commands map[string]string
+	Commands map[string]string `json:"commands"`
 
 	// excludes files by patterns or filename
-	excludes []string
+	Excludes []string `json:"excludes"`
 
 	// file changed identify map
 	datas map[string]changeIdentify
 	// scan times
 	scanCounter int
-	// if background...
-	runningCtx context.CancelFunc
 }
 
 func main() {
+	var testCfg = `
+	 [
+	 	{
+	 		"name" : "test",
+	 		"path" : "/opt/practice/go_server",
+	 		"execute" : "run",
+	 		"commands": {
+	 			"run" :   "go run /opt/practice/go_server/main.go",
+	 			"build": "go build /opt/practice/go_server/main.go"
+	 		},
+	 		"mode" : "background",
+	 		"excludes": [
+	 			"test/*",
+	 			"{main}",
+	 			".git/*"
+	 		]
+	 	},
+	 	{
+	 		"name" : "test2",
+	 		"path" : "/opt/practice/goapp",
+	 		"execute" : "run",
+	 		"commands": {
+	 			"run" : "go run /opt/practice/goapp/test_btree.go"
+	 		},
+	 		"mode" : "background",
+	 		"excludes": []
+	 	}
+	 ]
+	 `
+	// 	var testCfg = `
+	// [
+	// 	{
+	// 		"name" : "test",
+	// 		"path" : "/opt/practice/go_server",
+	// 		"execute" : "run",
+	// 		"commands": {
+	// 			"run" :   "go run /opt/practice/go_server/main.go",
+	// 			"build": "go build /opt/practice/go_server/main.go"
+	// 		},
+	// 		"mode" : "background",
+	// 		"excludes": [
+	// 			"test/*",
+	// 			"{main}",
+	// 			".git/*"
+	// 		]
+	// 	}
+	// ]
+	// `
 
-	cb := &CfgBlock{
-		name:    "test",
-		path:    "/opt/practice/go_server",
-		execute: "run",
-		commands: map[string]string{
-			"run":   "go run /opt/practice/go_server/main.go",
-			"build": "go build /opt/practice/go_server/main.go",
-		},
-		mode:  "background",
-		datas: make(map[string]changeIdentify),
-		excludes: []string{
-			"test/*",
-			"{main}",
-		},
+	cbs := parseCfg(testCfg)
+
+	var ctx context.Context
+	ctx = context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
+	for _, cb := range cbs {
+		ListenBlock(ctx, cb)
 	}
-	//fmt.Printf("%#v\n", cb)
 
-	ch := ListenBlock(cb)
+	var ch = make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	<-ch // blocking
+	fmt.Println("Read of interrupt signal...")
+	cancel()
+	time.Sleep(1 * time.Second)
+	fmt.Println("Stopped.")
+}
 
-	for {
-		time.Sleep(30 * time.Second)
+func parseCfg(s string) []CfgBlock {
+	var cbs []CfgBlock
+	cbs = make([]CfgBlock, 0)
+	if err := json.Unmarshal([]byte(s), &cbs); err != nil {
+		log.Fatalf("Config block parse failed: %s", err)
 	}
-	fmt.Println("for loop is done")
-	ch <- 1
+	for idx := range cbs {
+		cbs[idx].datas = make(map[string]changeIdentify)
+	}
+	return cbs
 }
 
 // ListenBlock 监听配置的block
-func ListenBlock(cb *CfgBlock) (ch chan int) {
+// 改为了传值, 因为不允许多个协程读写一个map
+func ListenBlock(ctx context.Context, cb CfgBlock) {
 	ticker := time.NewTicker(time.Duration(1000 * time.Millisecond))
-	ch = make(chan int, 1)
 
 	var lock sync.Mutex
 
 	go func(ticker *time.Ticker) {
+		var cancel context.CancelFunc
+	END:
 		for {
 			select {
 			case <-ticker.C:
 				//定时执行
 				lock.Lock()
 				// fmt.Println("counter run..")
-				cb.readNestedDirs()
+				if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
+					cancel = c
+				}
 				lock.Unlock()
-			case <-ch:
-				fmt.Println("stop ticker..")
+			case <-ctx.Done():
+				fmt.Println("stop ticker && call cancel func..")
+				cancel()
 				ticker.Stop()
-				break
+				break END
 			}
 		}
 	}(ticker)
@@ -96,22 +157,20 @@ func ListenBlock(cb *CfgBlock) (ch chan int) {
 	return
 }
 
-func (cb *CfgBlock) readNestedDirs() (isUpdated bool) {
+func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelFunc) (isUpdated bool, cancel context.CancelFunc) {
 	isUpdated = false
+	cancel = nil
 
 	var total int = 0
 	var ctime time.Time = time.Now()
-	_, regexps, _ := glob.Glob(cb.excludes)
+	_, regexps, _ := glob.Glob(cb.Excludes)
 
-	// fmt.Printf("%+v, %+v\n", regexps, cb.excludes)
-	// return
-
-	filepath.Walk(cb.path, func(p string, info os.FileInfo, err error) error {
+	filepath.Walk(cb.Path, func(p string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
-		if strings.HasPrefix(p, cb.path) {
-			shortP := strings.Trim(p[len(cb.path):], "/")
+		if strings.HasPrefix(p, cb.Path) {
+			shortP := strings.Trim(p[len(cb.Path):], "/")
 			for _, regexp := range regexps {
 				if regexp.MatchString(shortP) {
 					// fmt.Printf("[%s]match pattern: %+v\n", p, regexp)
@@ -155,65 +214,98 @@ func (cb *CfgBlock) readNestedDirs() (isUpdated bool) {
 		}
 	}
 
+	cb.scanCounter++
 	if isUpdated {
-		// fmt.Printf(">>> listen path:(%s) is changed!\n", cb.path)
-		cb.exec()
+		// fmt.Printf(">>> listen path:(%s) is changed!\n", cb.Path)
+		if stopLast != nil {
+			stopLast()
+			time.Sleep(1 * time.Second)
+		}
+		ctx, cancel = context.WithCancel(ctx)
+		cb.Exec(ctx)
 	}
 
-	cb.scanCounter++
-
-	return isUpdated
+	return
 }
 
-func (cb *CfgBlock) exec() {
+// Exec executing config block in goroutine
+func (cb *CfgBlock) Exec(ctx context.Context) {
+
 	// parse run
-	var cmd string = cb.commands[cb.execute]
-	fmt.Println("需要执行命令: ", cb.execute, cmd)
-	var mode string = cb.mode
-	fmt.Println("运行模式: ", mode)
+	var unparsed string = cb.Commands[cb.Execute]
+	// fmt.Println("需要执行命令: ", cb.Execute, cmd)
+	var mode string = cb.Mode
+	if !Contains([]string{"foreground", "background"}, mode) {
+		log.Fatalf("config[%s]err: mode(%s) not supported.\n", cb.Name, cb.Mode)
+	}
 
 	// parse cmd
 	var parsed []string
-	parsed = strings.SplitN(cmd, " ", 3)
+	parsed = strings.SplitN(unparsed, " ", 3)
 
 	// fmt.Printf("%#v \n", parsed)
 
-	// cancel last Cmd
-	if cb.runningCtx != nil {
-		fmt.Printf("Stop latest running...\n")
-		cb.runningCtx()
-	}
+	cmd := exec.CommandContext(ctx, parsed[0], parsed[1], parsed[2])
 
-	ctx := context.Background()
-	ctx, cb.runningCtx = context.WithCancel(ctx)
-
-	// ex := exec.Command("bash", "-c", cmd)
-	ex := exec.CommandContext(ctx, parsed[0], parsed[1], parsed[2])
-	// if forceground can use output
+	// if foreground can use output
 	// TODO
-	// ex.Stdout = os.Stdout
+	if cb.Mode == "foreground" {
+		cmd.Stdout = os.Stdout
+	}
 
 	// !! 默认进入监听的目录来执行
-	ex.Dir = cb.path
+	cmd.Dir = cb.Path
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	fmt.Println(ex.Path, ex.Args)
+	// fmt.Println(ex.Path, ex.Args)
 
-	exChan := make(chan error)
-	go func(ex *exec.Cmd, exChan chan error) {
-		exChan <- ex.Run()
-		fmt.Printf("execute command, PID=%d\n", ex.Process.Pid)
-	}(ex, exChan)
+	errCh := make(chan error, 1)
+	pgidCh := make(chan int, 1)
 
-	for {
-		select {
-		case <-time.After(1 * time.Second):
-			return
-		case err := <-exChan:
-			if err != nil {
-				fmt.Printf("ex.Run() failed with %#v ...\n", err)
-				return
+	go func(cmd *exec.Cmd) {
+		if err := cmd.Start(); err != nil {
+			errCh <- err
+		}
+		fmt.Println(cmd.Process.Pid, "creating CMD Process.")
+		if pgid, err := syscall.Getpgid(cmd.Process.Pid); err != nil {
+			log.Fatal(err)
+		} else {
+			pgidCh <- pgid
+		}
+
+		errCh <- cmd.Wait()
+		fmt.Println(cmd.Process.Pid, "CMD Process done.")
+	}(cmd)
+
+	var pgid int = <-pgidCh
+
+	go func() {
+	END:
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println(cmd.Process.Pid, ">>>>>> stop cmd process.")
+				// cmd.Process.Kill()
+				// @see: https://stackoverflow.com/questions/22470193/why-wont-go-kill-a-child-process-correctly
+				// cmd.Process.Kill()无法关闭子进程, 所以设置pgid,通过关闭进程组来正确关闭
+				syscall.Kill(-pgid, 15)
+				break END
+			case err := <-errCh:
+				fmt.Errorf("CMD Err: ", err)
+				break END
 			}
-			fmt.Println("ex run done.")
+		}
+		fmt.Println(cmd.Process.Pid, "for-select ctr exited.")
+	}()
+
+}
+
+// Contains check string exists in []string
+func Contains(a []string, x string) bool {
+	for _, elem := range a {
+		if elem == x {
+			return true
 		}
 	}
+	return false
 }
