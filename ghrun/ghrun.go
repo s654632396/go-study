@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -15,6 +16,9 @@ import (
 	"time"
 
 	"gopkg.in/godo.v2/glob"
+	// "github.com/urfave/cli"
+
+
 )
 
 type changeIdentify struct {
@@ -45,72 +49,58 @@ type CfgBlock struct {
 }
 
 func main() {
-	var testCfg = `
-	 [
-	 	{
-	 		"name" : "test",
-	 		"path" : "/opt/practice/go_server",
-	 		"execute" : "run",
-	 		"commands": {
-	 			"run" :   "go run /opt/practice/go_server/main.go",
-	 			"build": "go build /opt/practice/go_server/main.go"
-	 		},
-	 		"mode" : "background",
-	 		"excludes": [
-	 			"test/*",
-	 			"{main}",
-	 			".git/*"
-	 		]
-	 	},
-	 	{
-	 		"name" : "test2",
-	 		"path" : "/opt/practice/goapp",
-	 		"execute" : "run",
-	 		"commands": {
-	 			"run" : "go run /opt/practice/goapp/test_btree.go"
-	 		},
-	 		"mode" : "background",
-	 		"excludes": []
-	 	}
-	 ]
-	 `
-	// 	var testCfg = `
-	// [
-	// 	{
-	// 		"name" : "test",
-	// 		"path" : "/opt/practice/go_server",
-	// 		"execute" : "run",
-	// 		"commands": {
-	// 			"run" :   "go run /opt/practice/go_server/main.go",
-	// 			"build": "go build /opt/practice/go_server/main.go"
-	// 		},
-	// 		"mode" : "background",
-	// 		"excludes": [
-	// 			"test/*",
-	// 			"{main}",
-	// 			".git/*"
-	// 		]
-	// 	}
-	// ]
-	// `
 
-	cbs := parseCfg(testCfg)
+	// parse cli command
+	// app := &cli.App{}
+	// app.Name = "Hot Run"
+	// var command *cli.Command 
+	// command = &cli.Command{
+	// 	Name: "run",
+	// 	Action: func(c *cli.Context) error {
+ //                        fmt.Println("Hello,", c.String("name"))
+ //                        return nil
+ //        },
+	// }
+	// app.Commands = append(app.Commands, command)
+
+	// _ = app.Run(os.Args)
+	setup()
+}
+
+func setup () {
+	// read config file
+	var (
+		data []byte
+		err  error
+	)
+	if data, err = ioutil.ReadFile("./test.json"); err != nil {
+		panic(err)
+	}
+	var config string
+	config = string(data)
+	cbs := parseCfg(config)
 
 	var ctx context.Context
 	ctx = context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
+	defer func() {
+		fmt.Println("stop children process..")
+		cancel()
+		time.Sleep(1 * time.Second)
+		fmt.Println("Stopped.")
+	}()
+
 	for _, cb := range cbs {
 		ListenBlock(ctx, cb)
 	}
 
-	var ch = make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
-	<-ch // blocking
-	fmt.Println("Read of interrupt signal...")
-	cancel()
-	time.Sleep(1 * time.Second)
-	fmt.Println("Stopped.")
+	var ch = make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP)
+
+	signal := <-ch // blocking
+	fmt.Println("get shutdown signal:", signal)
+
 }
 
 func parseCfg(s string) []CfgBlock {
