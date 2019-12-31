@@ -126,7 +126,7 @@ func parseCfg(s string) []CfgBlock {
 }
 
 // ListenBlock 监听配置的block
-// 改为了传值, 因为不允许多个协程读写一个map
+// 改为了传值, 因为不允许多个协程读写一个map(不考虑线程安全,配置无修改操作)
 func ListenBlock(ctx context.Context, cb CfgBlock) {
 	ticker := time.NewTicker(time.Duration(1000 * time.Millisecond))
 
@@ -158,6 +158,12 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 }
 
 func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelFunc) (isUpdated bool, cancel context.CancelFunc) {
+	defer func() {
+		// 目录扫描次数up
+		cb.scanCounter++
+		// fmt.Println("scan dir --- ", cb.Path, "====>", cb.scanCounter)
+	}()
+
 	isUpdated = false
 	cancel = nil
 
@@ -214,7 +220,6 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 		}
 	}
 
-	cb.scanCounter++
 	if isUpdated {
 		// fmt.Printf(">>> listen path:(%s) is changed!\n", cb.Path)
 		if stopLast != nil {
@@ -255,6 +260,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 
 	// !! 默认进入监听的目录来执行
 	cmd.Dir = cb.Path
+	// !! 设置进程组属性
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	// fmt.Println(ex.Path, ex.Args)
@@ -266,7 +272,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		if err := cmd.Start(); err != nil {
 			errCh <- err
 		}
-		fmt.Println(cmd.Process.Pid, "creating CMD Process.")
+		// fmt.Println(cmd.Process.Pid, "creating CMD Process.")
 		if pgid, err := syscall.Getpgid(cmd.Process.Pid); err != nil {
 			log.Fatal(err)
 		} else {
@@ -274,7 +280,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		}
 
 		errCh <- cmd.Wait()
-		fmt.Println(cmd.Process.Pid, "CMD Process done.")
+		// fmt.Println(cmd.Process.Pid, "CMD Process done.")
 	}(cmd)
 
 	var pgid int = <-pgidCh
@@ -284,9 +290,10 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				fmt.Println(cmd.Process.Pid, ">>>>>> stop cmd process.")
+				// fmt.Println(cmd.Process.Pid, ">>>>>> stop cmd process.")
 				// cmd.Process.Kill()
 				// @see: https://stackoverflow.com/questions/22470193/why-wont-go-kill-a-child-process-correctly
+				// @see: https://stackoverflow.com/questions/24982845/process-kill-on-child-processes
 				// cmd.Process.Kill()无法关闭子进程, 所以设置pgid,通过关闭进程组来正确关闭
 				syscall.Kill(-pgid, 15)
 				break END
@@ -295,7 +302,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 				break END
 			}
 		}
-		fmt.Println(cmd.Process.Pid, "for-select ctr exited.")
+		// fmt.Println(cmd.Process.Pid, "for-select ctr exited.")
 	}()
 
 }
