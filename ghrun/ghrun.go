@@ -3,24 +3,25 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+
+	// "runtime/trace"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/urfave/cli"
 	"gopkg.in/godo.v2/glob"
 	// "github.com/urfave/cli"
-
-
 )
 
+// use system file change time to determine wheather file changed.
 type changeIdentify struct {
 	SyncTime    time.Time
 	changeValue string
@@ -50,30 +51,37 @@ type CfgBlock struct {
 
 func main() {
 
-	// parse cli command
-	// app := &cli.App{}
-	// app.Name = "Hot Run"
-	// var command *cli.Command 
-	// command = &cli.Command{
-	// 	Name: "run",
-	// 	Action: func(c *cli.Context) error {
- //                        fmt.Println("Hello,", c.String("name"))
- //                        return nil
- //        },
-	// }
-	// app.Commands = append(app.Commands, command)
+	var configFile string
 
-	// _ = app.Run(os.Args)
-	setup()
+	// parse cli command
+	app := cli.NewApp()
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:        "file",
+			Value:       "",
+			Required:    true,
+			Usage:       "specify the configuration file.",
+			Destination: &configFile,
+		},
+	}
+
+	app.Action = func(c *cli.Context) error {
+
+		Setup(configFile)
+		return nil
+	}
+
+	_ = app.Run(os.Args)
 }
 
-func setup () {
+// Setup run service.
+func Setup(cf string) {
 	// read config file
 	var (
 		data []byte
 		err  error
 	)
-	if data, err = ioutil.ReadFile("./test.json"); err != nil {
+	if data, err = ioutil.ReadFile(cf); err != nil {
 		panic(err)
 	}
 	var config string
@@ -85,10 +93,10 @@ func setup () {
 	ctx, cancel := context.WithCancel(ctx)
 
 	defer func() {
-		fmt.Println("stop children process..")
+		log.Println("stop children process..")
 		cancel()
 		time.Sleep(1 * time.Second)
-		fmt.Println("Stopped.")
+		log.Println("Stopped.")
 	}()
 
 	for _, cb := range cbs {
@@ -99,8 +107,7 @@ func setup () {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP)
 
 	signal := <-ch // blocking
-	fmt.Println("get shutdown signal:", signal)
-
+	log.Println("get shutdown signal:", signal)
 }
 
 func parseCfg(s string) []CfgBlock {
@@ -109,6 +116,7 @@ func parseCfg(s string) []CfgBlock {
 	if err := json.Unmarshal([]byte(s), &cbs); err != nil {
 		log.Fatalf("Config block parse failed: %s", err)
 	}
+	// log.Printf("%+v \n", cbs)
 	for idx := range cbs {
 		cbs[idx].datas = make(map[string]changeIdentify)
 	}
@@ -136,7 +144,6 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 				}
 				lock.Unlock()
 			case <-ctx.Done():
-				fmt.Println("stop ticker && call cancel func..")
 				cancel()
 				ticker.Stop()
 				break END
@@ -183,7 +190,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 				// is updated !
 				cb.datas[p] = changeIdentify{ctime, curtimeStr}
 				isUpdated = true
-				fmt.Printf("修改文件[%s]...\n", p)
+				log.Printf("修改文件[%s]...\n", p)
 			} else {
 				pv.SyncTime = ctime
 				cb.datas[p] = pv
@@ -194,7 +201,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 			if cb.scanCounter == 0 {
 				return nil
 			}
-			fmt.Printf("新增文件[%s]...\n", p)
+			log.Printf("新增文件[%s]...\n", p)
 		}
 
 		return nil
@@ -205,7 +212,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 		for path, ci := range cb.datas {
 			if ci.SyncTime != ctime {
 				delete(cb.datas, path)
-				fmt.Printf("删除文件[%s]...\n", path)
+				log.Printf("删除文件[%s]...\n", path)
 			}
 		}
 	}
@@ -288,7 +295,9 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 				syscall.Kill(-pgid, 15)
 				break END
 			case err := <-errCh:
-				fmt.Errorf("CMD Err: ", err)
+				if err != nil {
+					log.Println(err)
+				}
 				break END
 			}
 		}

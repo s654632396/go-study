@@ -1,0 +1,30 @@
+[
+	 	{
+	 		"name" : "test",
+	 		"path" : "/opt/practice/go_server",
+	 		"execute" : "run",
+	 		"commands": {
+	 			"run" :   "go run /opt/practice/go_server/main.go",
+	 			"build": "go build /opt/practice/go_server/main.go"
+	 		},
+	 		"mode" : "background",
+	 		"excludes": [
+	 			"test/*",
+	 			"{main}",
+	 			".git/*"
+	 		]
+	 	},
+	 	{
+	 		"name" : "test2",
+	 		"path" : "/opt/practice/goapp",
+	 		"execute" : "run",
+	 		"commands": {
+	 			"run" : "go build /opt/practice/goapp/test_btree.go"
+	 		},
+	 		"mode" : "background",
+            "excludes": [
+                "{test_btree}",
+                ".git/*"
+            ]
+	 	}
+]

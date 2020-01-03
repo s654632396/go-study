@@ -16,6 +16,7 @@ func main() {
 	}
 	var seed int = time.Now().Nanosecond()
 	rand.Seed(int64(seed))
+	fmt.Println("start ..")
 	// for i := 0; i < 80; i++ {
 	// 	value := NodeValue(rand.Intn(100))
 	// 	bt.Add(value, value+100000)
