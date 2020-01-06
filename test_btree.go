@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/s654632396/pkg/adt"
+	adt "github.com/s654632396/mpkg/btree"
 )
 
 func main() {
