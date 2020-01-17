@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/docker/docker/pkg/reexec"
 )
@@ -17,6 +18,7 @@ func init() {
 
 func childProcess() {
 	log.Println("childProcess")
+	time.Sleep(time.Second * 20)
 }
 
 func main() {
