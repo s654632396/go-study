@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -87,6 +88,7 @@ func Setup(cf string) {
 	var config string
 	config = string(data)
 	cbs := parseCfg(config)
+	fmt.Println(cbs)
 
 	var ctx context.Context
 	ctx = context.Background()
@@ -104,8 +106,8 @@ func Setup(cf string) {
 	}
 
 	var ch = make(chan os.Signal)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP)
 
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP)
 	signal := <-ch // blocking
 	log.Println("get shutdown signal:", signal)
 }
@@ -126,27 +128,32 @@ func parseCfg(s string) []CfgBlock {
 // ListenBlock 监听配置的block
 // 改为了传值, 因为不允许多个协程读写一个map(不考虑线程安全,配置无修改操作)
 func ListenBlock(ctx context.Context, cb CfgBlock) {
-	ticker := time.NewTicker(time.Duration(1000 * time.Millisecond))
+	ticker := time.NewTicker(60 * time.Second)
 
 	var lock sync.Mutex
 
 	go func(ticker *time.Ticker) {
+		defer ticker.Stop()
+
 		var cancel context.CancelFunc
+		//fmt.Println(ticker, lock, cancel)
+
 	END:
 		for {
 			select {
 			case <-ticker.C:
 				//定时执行
 				lock.Lock()
-				// fmt.Println("counter run..")
+				fmt.Println("counter run..")
 				if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
 					cancel = c
 				}
 				lock.Unlock()
 			case <-ctx.Done():
 				cancel()
-				ticker.Stop()
+				time.Sleep(1 * time.Second)
 				break END
+			default:
 			}
 		}
 	}(ticker)
@@ -158,7 +165,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 	defer func() {
 		// 目录扫描次数up
 		cb.scanCounter++
-		// fmt.Println("scan dir --- ", cb.Path, "====>", cb.scanCounter)
+		fmt.Println("scan dir --- ", cb.Path, "====>", cb.scanCounter)
 	}()
 
 	isUpdated = false
@@ -203,7 +210,6 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 			}
 			log.Printf("新增文件[%s]...\n", p)
 		}
-
 		return nil
 	})
 
@@ -221,7 +227,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 		// fmt.Printf(">>> listen path:(%s) is changed!\n", cb.Path)
 		if stopLast != nil {
 			stopLast()
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Microsecond)
 		}
 		ctx, cancel = context.WithCancel(ctx)
 		cb.Exec(ctx)
