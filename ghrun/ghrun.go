@@ -276,7 +276,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 		}
 	}
 
-	if isUpdated {
+	if isUpdated && cb.scanCounter > 0 {
 		// log.Printf(">>> listen path:(%s) is changed!\n", cb.Path)
 		if stopLast != nil {
 			stopLast()
@@ -306,7 +306,6 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	// if foreground can use output
-	// TODO
 	if cb.Mode == "background" {
 		if cb.LogFile == "" {
 			log.Fatalf("backgound mode must setting a log_file first!")
