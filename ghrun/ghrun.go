@@ -35,6 +35,8 @@ type CfgBlock struct {
 	Execute string `json:"execute"`
 	// execute mode ,valid values: forceground(前台) background(后台,用于启动守护进程之类的)
 	Mode string `json:"mode"`
+	// Command output in log file when Mode=background
+	LogFile string `json:"log_file"`
 	// regist commands
 	Commands map[string]string `json:"commands"`
 
@@ -291,7 +293,6 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 func (cb *CfgBlock) Exec(ctx context.Context) {
 
 	var shellCmd string = cb.Commands[cb.Execute]
-	// log.Println("需要执行命令: ", cb.Execute, cmd)
 	var mode string = cb.Mode
 	if !Contains([]string{"foreground", "background"}, mode) {
 		log.Fatalf("config[%s]err: mode(%s) not supported.\n", cb.Name, cb.Mode)
@@ -299,17 +300,25 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", shellCmd)
 
-	// if foreground can use output
-	// TODO
-	if cb.Mode == "foreground" {
-		cmd.Stdout = os.Stdout
-	}
-
 	// !! 默认进入监听的目录来执行
 	cmd.Dir = cb.Path
 	// !! 设置进程组属性
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
+	// if foreground can use output
+	// TODO
+	if cb.Mode == "background" {
+		if cb.LogFile == "" {
+			log.Fatalf("backgound mode must setting a log_file first!")
+		}
+		if f, err := os.OpenFile(cb.LogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666); err != nil {
+			log.Fatalln(err)
+		} else {
+			cmd.Stdout = f
+		}
+	} else {
+		cmd.Stdout = os.Stdout
+	}
 	// log.Println(cmd.Path, cmd.Args)
 
 	errCh := make(chan error, 1)
@@ -319,15 +328,17 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		if err := cmd.Start(); err != nil {
 			errCh <- err
 		}
-		// log.Println(cmd.Process.Pid, "creating CMD Process.")
+		log.Println(cmd.Process.Pid, "creating CMD Process.")
 		if pgid, err := syscall.Getpgid(cmd.Process.Pid); err != nil {
 			log.Fatal(err)
 		} else {
 			pgidCh <- pgid
 		}
 
-		errCh <- cmd.Wait()
-		// log.Println(cmd.Process.Pid, "CMD Process done.")
+		go func() {
+			errCh <- cmd.Wait()
+			log.Println(cmd.Process.Pid, "CMD Process done.")
+		}()
 	}(cmd)
 
 	var pgid int = <-pgidCh
