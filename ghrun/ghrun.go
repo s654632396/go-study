@@ -19,7 +19,7 @@ import (
 	"gopkg.in/godo.v2/glob"
 )
 
-// use system file change time to determine wheather file changed.
+//    use system file change time to determine wheather file changed.
 type changeIdentify struct {
 	SyncTime    time.Time
 	changeValue string
@@ -45,6 +45,8 @@ type CfgBlock struct {
 	datas map[string]changeIdentify
 	// scan times
 	scanCounter int
+	// scan ticker
+	ScanTicker int64 `json:"scan_ticker"`
 }
 
 var needCPUProfile bool
@@ -78,20 +80,20 @@ func main() {
 		if c.Bool("prof") {
 			needCPUProfile = true
 		}
-		log.Println("needCPUProfile =", needCPUProfile)
 
 		Setup(configFile)
 		return nil
 	}
 
-	_ = app.Run(os.Args)
+	app.Run(os.Args)
+	//  godaemon.MakeDaemon(&godaemon.DaemonAttr{})
 }
 
 // Setup run service.
 func Setup(cf string) {
 	//   是否启用pprof分析程序cpu使用
 	if needCPUProfile {
-		log.Println("start cpu profile logger")
+		log.Println("Start CPU profile logger.")
 
 		f, err := os.Create("./ghrun_cpu_profile")
 		if err != nil {
@@ -153,7 +155,13 @@ func parseCfg(s string) []CfgBlock {
 func ListenBlock(ctx context.Context, cb CfgBlock) {
 
 	go func() {
-		duration := time.Duration(10 * time.Second)
+		var duration int64
+		if cb.ScanTicker < 1 {
+			duration = int64(5 * time.Second)
+		} else {
+			duration = cb.ScanTicker * int64(time.Second)
+		}
+		log.Println("scan_ticker =", duration)
 		var cancel context.CancelFunc
 	END:
 		for {
@@ -169,7 +177,7 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 				time.Sleep(1 * time.Second)
 				break END
 			default:
-				time.Sleep(duration)
+				time.Sleep(time.Duration(duration))
 			}
 		}
 
@@ -282,21 +290,14 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 // Exec executing config block in goroutine
 func (cb *CfgBlock) Exec(ctx context.Context) {
 
-	// parse run
-	var unparsed string = cb.Commands[cb.Execute]
+	var shellCmd string = cb.Commands[cb.Execute]
 	// log.Println("需要执行命令: ", cb.Execute, cmd)
 	var mode string = cb.Mode
 	if !Contains([]string{"foreground", "background"}, mode) {
 		log.Fatalf("config[%s]err: mode(%s) not supported.\n", cb.Name, cb.Mode)
 	}
 
-	// parse cmd
-	var parsed []string
-	parsed = strings.SplitN(unparsed, " ", 3)
-
-	// log.Printf("%#v \n", parsed)
-
-	cmd := exec.CommandContext(ctx, parsed[0], parsed[1], parsed[2])
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", shellCmd)
 
 	// if foreground can use output
 	// TODO
@@ -309,7 +310,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 	// !! 设置进程组属性
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	// log.Println(ex.Path, ex.Args)
+	// log.Println(cmd.Path, cmd.Args)
 
 	errCh := make(chan error, 1)
 	pgidCh := make(chan int, 1)
