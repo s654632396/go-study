@@ -10,10 +10,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime/pprof"
 
 	// "runtime/trace"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -71,6 +71,12 @@ func main() {
 		Setup(configFile)
 		return nil
 	}
+	f, err := os.Create("./ghrun_cpu_profile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
 	_ = app.Run(os.Args)
 }
@@ -128,35 +134,55 @@ func parseCfg(s string) []CfgBlock {
 // ListenBlock 监听配置的block
 // 改为了传值, 因为不允许多个协程读写一个map(不考虑线程安全,配置无修改操作)
 func ListenBlock(ctx context.Context, cb CfgBlock) {
-	ticker := time.NewTicker(60 * time.Second)
 
-	var lock sync.Mutex
-
-	go func(ticker *time.Ticker) {
-		defer ticker.Stop()
-
+	go func() {
+		duration := time.Duration(10 * time.Second)
 		var cancel context.CancelFunc
-		//fmt.Println(ticker, lock, cancel)
-
 	END:
 		for {
+			fmt.Println("counter run..")
+
+			if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
+				cancel = c
+			}
+
 			select {
-			case <-ticker.C:
-				//定时执行
-				lock.Lock()
-				fmt.Println("counter run..")
-				if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
-					cancel = c
-				}
-				lock.Unlock()
 			case <-ctx.Done():
 				cancel()
 				time.Sleep(1 * time.Second)
 				break END
 			default:
+				time.Sleep(duration)
 			}
 		}
-	}(ticker)
+
+	}()
+
+	// !!!!! 使用ticker的for-select goroutine会大幅度提高cpu占用率 !!!!!
+	// ticker := time.NewTicker(time.Duration(10 * time.Second))
+
+	// go func(ticker *time.Ticker) {
+	// 	var cancel context.CancelFunc
+
+	// END:
+	// 	for {
+	// 		select {
+	// 		case <-ticker.C:
+	// 			//定时执行
+	// 			fmt.Println("counter run..")
+	// 			if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
+	// 				cancel = c
+	// 			}
+	// 		case <-ctx.Done():
+	// 			cancel()
+	// 			fmt.Println("counter run..")
+	// 			time.Sleep(1 * time.Second)
+	// 			ticker.Stop()
+	// 			break END
+	// 		default:
+	// 		}
+	// 	}
+	// }(ticker)
 
 	return
 }
