@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,14 +11,12 @@ import (
 	"path/filepath"
 	"runtime/pprof"
 
-	// "runtime/trace"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/urfave/cli"
 	"gopkg.in/godo.v2/glob"
-	// "github.com/urfave/cli"
 )
 
 // use system file change time to determine wheather file changed.
@@ -50,9 +47,13 @@ type CfgBlock struct {
 	scanCounter int
 }
 
+var needCPUProfile bool
+
 func main() {
 
-	var configFile string
+	var (
+		configFile string
+	)
 
 	// parse cli command
 	app := cli.NewApp()
@@ -64,25 +65,41 @@ func main() {
 			Usage:       "specify the configuration file.",
 			Destination: &configFile,
 		},
+		cli.BoolFlag{
+			Name:        "prof",
+			Required:    false,
+			EnvVar:      "",
+			Usage:       "whether use pprof to analysis performance.",
+			Destination: &needCPUProfile,
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
+		if c.Bool("prof") {
+			needCPUProfile = true
+		}
+		log.Println("needCPUProfile =", needCPUProfile)
 
 		Setup(configFile)
 		return nil
 	}
-	f, err := os.Create("./ghrun_cpu_profile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
 
 	_ = app.Run(os.Args)
 }
 
 // Setup run service.
 func Setup(cf string) {
+	//   是否启用pprof分析程序cpu使用
+	if needCPUProfile {
+		log.Println("start cpu profile logger")
+
+		f, err := os.Create("./ghrun_cpu_profile")
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 	// read config file
 	var (
 		data []byte
@@ -94,7 +111,7 @@ func Setup(cf string) {
 	var config string
 	config = string(data)
 	cbs := parseCfg(config)
-	fmt.Println(cbs)
+	// log.Println(cbs)
 
 	var ctx context.Context
 	ctx = context.Background()
@@ -140,7 +157,7 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 		var cancel context.CancelFunc
 	END:
 		for {
-			fmt.Println("counter run..")
+			// log.Println("counter run..")
 
 			if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
 				cancel = c
@@ -158,7 +175,7 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 
 	}()
 
-	// !!!!! 使用ticker的for-select goroutine会大幅度提高cpu占用率 !!!!!
+	// // !!!!! 使用ticker的for-select goroutine会大幅度提高cpu占用率 !!!!!
 	// ticker := time.NewTicker(time.Duration(10 * time.Second))
 
 	// go func(ticker *time.Ticker) {
@@ -169,13 +186,13 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 	// 		select {
 	// 		case <-ticker.C:
 	// 			//定时执行
-	// 			fmt.Println("counter run..")
+	// 			log.Println("counter run..")
 	// 			if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
 	// 				cancel = c
 	// 			}
 	// 		case <-ctx.Done():
 	// 			cancel()
-	// 			fmt.Println("counter run..")
+	// 			log.Println("counter run..")
 	// 			time.Sleep(1 * time.Second)
 	// 			ticker.Stop()
 	// 			break END
@@ -191,7 +208,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 	defer func() {
 		// 目录扫描次数up
 		cb.scanCounter++
-		fmt.Println("scan dir --- ", cb.Path, "====>", cb.scanCounter)
+		// log.Println("scan dir --- ", cb.Path, "====>", cb.scanCounter)
 	}()
 
 	isUpdated = false
@@ -209,7 +226,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 			shortP := strings.Trim(p[len(cb.Path):], "/")
 			for _, regexp := range regexps {
 				if regexp.MatchString(shortP) {
-					// fmt.Printf("[%s]match pattern: %+v\n", p, regexp)
+					// log.Printf("[%s]match pattern: %+v\n", p, regexp)
 					return nil
 				}
 			}
@@ -250,7 +267,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 	}
 
 	if isUpdated {
-		// fmt.Printf(">>> listen path:(%s) is changed!\n", cb.Path)
+		// log.Printf(">>> listen path:(%s) is changed!\n", cb.Path)
 		if stopLast != nil {
 			stopLast()
 			time.Sleep(10 * time.Microsecond)
@@ -267,7 +284,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 
 	// parse run
 	var unparsed string = cb.Commands[cb.Execute]
-	// fmt.Println("需要执行命令: ", cb.Execute, cmd)
+	// log.Println("需要执行命令: ", cb.Execute, cmd)
 	var mode string = cb.Mode
 	if !Contains([]string{"foreground", "background"}, mode) {
 		log.Fatalf("config[%s]err: mode(%s) not supported.\n", cb.Name, cb.Mode)
@@ -277,7 +294,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 	var parsed []string
 	parsed = strings.SplitN(unparsed, " ", 3)
 
-	// fmt.Printf("%#v \n", parsed)
+	// log.Printf("%#v \n", parsed)
 
 	cmd := exec.CommandContext(ctx, parsed[0], parsed[1], parsed[2])
 
@@ -292,7 +309,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 	// !! 设置进程组属性
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	// fmt.Println(ex.Path, ex.Args)
+	// log.Println(ex.Path, ex.Args)
 
 	errCh := make(chan error, 1)
 	pgidCh := make(chan int, 1)
@@ -301,7 +318,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		if err := cmd.Start(); err != nil {
 			errCh <- err
 		}
-		// fmt.Println(cmd.Process.Pid, "creating CMD Process.")
+		// log.Println(cmd.Process.Pid, "creating CMD Process.")
 		if pgid, err := syscall.Getpgid(cmd.Process.Pid); err != nil {
 			log.Fatal(err)
 		} else {
@@ -309,7 +326,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		}
 
 		errCh <- cmd.Wait()
-		// fmt.Println(cmd.Process.Pid, "CMD Process done.")
+		// log.Println(cmd.Process.Pid, "CMD Process done.")
 	}(cmd)
 
 	var pgid int = <-pgidCh
@@ -319,7 +336,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				// fmt.Println(cmd.Process.Pid, ">>>>>> stop cmd process.")
+				// log.Println(cmd.Process.Pid, ">>>>>> stop cmd process.")
 				// cmd.Process.Kill()
 				// @see: https://stackoverflow.com/questions/22470193/why-wont-go-kill-a-child-process-correctly
 				// @see: https://stackoverflow.com/questions/24982845/process-kill-on-child-processes
@@ -333,7 +350,7 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 				break END
 			}
 		}
-		// fmt.Println(cmd.Process.Pid, "for-select ctr exited.")
+		// log.Println(cmd.Process.Pid, "for-select ctr exited.")
 	}()
 
 }
