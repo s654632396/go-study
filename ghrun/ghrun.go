@@ -39,6 +39,8 @@ type CfgBlock struct {
 	LogFile string `json:"log_file"`
 	// regist commands
 	Commands map[string]string `json:"commands"`
+	// Command excution path
+	CmdPath string `json:"cmd_path"`
 
 	// excludes files by patterns or filename
 	Excludes []string `json:"excludes"`
@@ -300,8 +302,12 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", shellCmd)
 
-	// !! 默认进入监听的目录来执行
-	cmd.Dir = cb.Path
+	if cb.CmdPath != "" {
+		cmd.Dir = cb.CmdPath
+	} else {
+		// 进入监听的目录来执行
+		cmd.Dir = cb.Path
+	}
 	// !! 设置进程组属性
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
