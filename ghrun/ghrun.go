@@ -177,8 +177,10 @@ func ListenBlock(ctx context.Context, cb CfgBlock) {
 
 			select {
 			case <-ctx.Done():
-				cancel()
-				time.Sleep(1 * time.Second)
+				if cancel != nil {
+					cancel()
+					time.Sleep(1 * time.Second)
+				}
 				break END
 			default:
 				time.Sleep(time.Duration(duration))
