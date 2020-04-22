@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/pprof"
-
+	"runtime/trace"
 	"strings"
 	"syscall"
 	"time"
@@ -37,9 +37,9 @@ type CfgBlock struct {
 	Mode string `json:"mode"`
 	// Command output in log file when Mode=background
 	LogFile string `json:"log_file"`
-	// regist commands
+	// register commands
 	Commands map[string]string `json:"commands"`
-	// Command excution path
+	// Command execution path
 	CmdPath string `json:"cmd_path"`
 
 	// excludes files by patterns or filename
@@ -53,7 +53,10 @@ type CfgBlock struct {
 	ScanTicker int64 `json:"scan_ticker"`
 }
 
-var needCPUProfile bool
+var (
+	needCPUProfile bool
+	needTraceProfile bool
+)
 
 func main() {
 
@@ -78,11 +81,21 @@ func main() {
 			Usage:       "whether use pprof to analysis performance.",
 			Destination: &needCPUProfile,
 		},
+		cli.BoolFlag{
+			Name:        "trace",
+			Required:    false,
+			EnvVar:      "",
+			Usage:       "whether use trace to analysis goroutines.",
+			Destination: &needTraceProfile,
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("prof") {
 			needCPUProfile = true
+		}
+		if c.Bool("trace") {
+			needTraceProfile = true
 		}
 
 		Setup(configFile)
@@ -90,12 +103,11 @@ func main() {
 	}
 
 	app.Run(os.Args)
-	//  godaemon.MakeDaemon(&godaemon.DaemonAttr{})
 }
 
 // Setup run service.
 func Setup(cf string) {
-	//   是否启用pprof分析程序cpu使用
+	// 是否启用pprof分析程序cpu使用
 	if needCPUProfile {
 		log.Println("Start CPU profile logger.")
 
@@ -103,9 +115,17 @@ func Setup(cf string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		pprof.StartCPUProfile(f)
+		_ = pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+	// 是否需要goroutines的trace状况 (可以使用 `go tool trace -http=":7080" trace.out`来分析)
+	if needTraceProfile {
+		f, _ := os.Create("trace.out")
+		_ = trace.Start(f)
+		defer trace.Stop()
+	}
+
+
 	// read config file
 	var (
 		data []byte
@@ -232,7 +252,7 @@ func (cb *CfgBlock) readNestedDirs(ctx context.Context, stopLast context.CancelF
 	var ctime time.Time = time.Now()
 	_, regexps, _ := glob.Glob(cb.Excludes)
 
-	filepath.Walk(cb.Path, func(p string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(cb.Path, func(p string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -360,7 +380,10 @@ func (cb *CfgBlock) Exec(ctx context.Context) {
 				// @see: https://stackoverflow.com/questions/22470193/why-wont-go-kill-a-child-process-correctly
 				// @see: https://stackoverflow.com/questions/24982845/process-kill-on-child-processes
 				// cmd.Process.Kill()无法关闭子进程, 所以设置pgid,通过关闭进程组来正确关闭
-				syscall.Kill(-pgid, 15)
+				err := syscall.Kill(-pgid, 15)
+				if err != nil {
+					panic(err)
+				}
 				break END
 			case err := <-errCh:
 				if err != nil {

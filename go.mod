@@ -10,7 +10,10 @@ require (
 	github.com/gen2brain/dlgs v0.0.0-20191023125645-8832682fb7f8
 	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
 	github.com/jinzhu/gorm v1.9.11
+	github.com/jroimartin/gocui v0.4.0
+	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mgutz/str v1.2.0 // indirect
+	github.com/nsf/termbox-go v0.0.0-20200418040025-38ba6e5628f1 // indirect
 	github.com/s654632396/mpkg v0.0.0-20200106125837-d18186febc2a
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 	github.com/urfave/cli v1.22.4 // indirect
