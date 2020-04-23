@@ -41,7 +41,6 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 	}
 	hm.len = 0
 	hm.expendFactor = uint64(math.Floor(float64(hm.cap) * 0.75))
-	fmt.Println("expendFactor = ", hm.expendFactor)
 	hm.repo = make([]*item, hm.cap, hm.cap)
 
 	return
@@ -75,9 +74,7 @@ Crash:
 
 // Store
 func (hm *HashMap) Store(k string, v interface{}) (error error) {
-
 	if hm.len+1 >= hm.expendFactor {
-		// log.Println("extend HashMap..")
 		if error = hm.extend(); error != nil {
 			return error
 		}
@@ -215,7 +212,6 @@ func hashKey(k string) (hash uint64) {
 
 func (hm *HashMap) index(hash uint64) (index uint64) {
 	index = hash & (hm.cap - 1)
-	// log.Println(fmt.Sprintf("hash[%d] & mask[%d] = %d", hash, hm.cap-1, index))
 	return
 }
 
