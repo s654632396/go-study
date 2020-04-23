@@ -75,6 +75,7 @@ Crash:
 
 // Store
 func (hm *HashMap) Store(k string, v interface{}) (error error) {
+
 	if hm.len+1 >= hm.expendFactor {
 		// log.Println("extend HashMap..")
 		if error = hm.extend(); error != nil {
@@ -82,6 +83,9 @@ func (hm *HashMap) Store(k string, v interface{}) (error error) {
 		}
 		return hm.Store(k, v)
 	} else {
+		hm.lock.Lock()
+		defer hm.lock.Unlock()
+
 		hash := hashKey(k)
 		index := hm.index(hash)
 		item := &item{key: k, value: v}
@@ -91,13 +95,9 @@ func (hm *HashMap) Store(k string, v interface{}) (error error) {
 			for ptr.next != nil {
 				ptr = ptr.next
 			}
-			hm.lock.Lock()
 			ptr.next = item
-			hm.lock.Unlock()
 		} else {
-			hm.lock.Lock()
 			hm.repo[index] = item
-			hm.lock.Unlock()
 		}
 		hm.len++
 		return nil
@@ -136,9 +136,9 @@ func (hm *HashMap) Del(k string) (v interface{}, ok bool) {
 	}
 
 	var (
-		ptr = &(hm.repo[index]) // 取指针(*item)的指针: **item
-		item    = hm.repo[index]	// *item
-		isRoot  = true
+		ptr    = &(hm.repo[index]) // 取指针(*item)的指针: **item
+		item   = hm.repo[index]    // *item
+		isRoot = true
 	)
 	for {
 		if item == nil {
@@ -225,22 +225,7 @@ func (hm *HashMap) debug() {
 }
 
 func main() {
-	//var dataCollection = map[string]interface{}{
-	//	"key1":  "this is a string",
-	//	"key2":  "为什么你这么熟练啊",
-	//	"key3":  "你不要过来啊",
-	//	"key4":  "jojo,我不做人啦!",
-	//	"key5":  "炸哇陆多!",
-	//	"key6":  "kksk",
-	//	"key7":  "ko~ ko~ da~ yo~",
-	//	"key8":  "404",
-	//	"key9":  "????",
-	//	"key10": nil,
-	//	"key11": nil,
-	//	"key12": nil,
-	//	"key13": "吃我压路机~~~",
-	//	"key14": nil,
-	//}
+
 	var dataCollection = [...][2]string{
 		{"key1", "this is a string"},
 		{"key2", "为什么你这么熟练啊"},
