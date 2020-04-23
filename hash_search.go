@@ -89,14 +89,24 @@ func (hm *HashMap) Store(k string, v interface{}) (error error) {
 		if nil != hm.repo[index] {
 			// 该索引存在item了
 			ptr := hm.repo[index]
-			for ptr.next != nil {
-				ptr = ptr.next
+			for {
+				if ptr.key == k {
+					// 存在相同key,则覆盖更新value
+					ptr.value = v
+					goto END
+				}
+				if ptr.next != nil {
+					ptr = ptr.next
+				} else {
+					break
+				}
 			}
 			ptr.next = item
 		} else {
 			hm.repo[index] = item
 		}
 		hm.len++
+	END:
 		return nil
 	}
 }
@@ -237,6 +247,8 @@ func main() {
 		{"key12", "3333"},
 		{"key13", "吃我压路机~~~"},
 		{"key14", "+++++"},
+		{"key2", "为什么你这么熟练啊??"},   // duplicate key
+		{"key4", "jojo,我不做人啦~~!"}, // duplicate key
 	}
 
 	var hm = NewHashMap(0)
@@ -247,18 +259,11 @@ func main() {
 	//fmt.Println(hm.len)
 
 	//fmt.Println(hm.Get("key8"))
-	//fmt.Println(hm.Get("key4"))
-	//fmt.Println(hm.Get("key7"))
 	//fmt.Println(hm.Get("key199"))
 	//fmt.Println(hm.Get("key1"))
-	hm.print()
-	fmt.Println(hm.Get("key4"))
-	hm.Del("key4")
-	fmt.Println(hm.Get("key4"))
-	hm.print()
-	fmt.Println(hm.Get("key13"))
-	hm.Del("key13")
-	fmt.Println(hm.Get("key13"))
 
+	hm.print()
+	hm.Del("key4")
+	hm.Del("key13")
 	hm.print()
 }
