@@ -46,12 +46,18 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 	return
 }
 
-//noinspection ALL
+//extend capacity
 func (hm *HashMap) extend() (error error) {
 	defer runtime.GC()
 
 	var growCap uint64 = 1 << int(math.Ceil(math.Log2(float64(hm.cap)))+1)
 	nhm := NewHashMap(growCap)
+	/**
+	 * Q&A:
+	 * Q: 如果在扩展中发生了Store或者Del操作,造成数据丢失等,应该如何处理这部分问题?
+	 * A: 对原型hashMap加锁,但是不能影响到Store操作
+	 * TODO:
+	 */
 Crash:
 	for _, item := range hm.repo {
 		if item == nil {
@@ -241,7 +247,7 @@ func main() {
 		{"key6", "kksk"},
 		{"key7", "ko~ ko~ da~ yo~"},
 		{"key8", "404"},
-		{"key9", "????"},
+		{"key9", "打死白学家"},
 		{"key10", "1111"},
 		{"key11", "22222"},
 		{"key12", "3333"},
