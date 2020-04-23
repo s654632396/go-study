@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -29,6 +30,8 @@ type HashMap struct {
 	repo         []*item // 数据仓库
 	expendFactor uint64  // 当仓库大小达到该值时,进行扩容
 	lock         sync.Mutex
+	wait         bool
+	waitCh       chan int
 }
 
 // NewHashMap
@@ -42,6 +45,7 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 	hm.len = 0
 	hm.expendFactor = uint64(math.Floor(float64(hm.cap) * 0.75))
 	hm.repo = make([]*item, hm.cap, hm.cap)
+	hm.waitCh = make(chan int, 1)
 
 	return
 }
@@ -50,6 +54,11 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 func (hm *HashMap) extend() (error error) {
 	defer runtime.GC()
 
+	hm.wait = true
+	defer func() {
+		hm.waitCh <- 1
+		hm.wait = false
+	}()
 	var growCap uint64 = 1 << int(math.Ceil(math.Log2(float64(hm.cap)))+1)
 	nhm := NewHashMap(growCap)
 	/**
@@ -73,17 +82,30 @@ Crash:
 			}
 			item = item.next
 		}
+		time.Sleep(100 * time.Microsecond) // 模拟大数据扩容
 	}
-	*hm = *nhm
+	// notice: 这里只进行对等属性的copy, 不要直接*hm=*nhm
+	// *hm=*nhm会导致waitCh的丢失
+	hm.repo = nhm.repo
+	hm.len = nhm.len
+	hm.cap = nhm.cap
+	hm.expendFactor = nhm.expendFactor
+
 	return error
 }
 
 // Store
 func (hm *HashMap) Store(k string, v interface{}) (error error) {
+	if hm.wait {
+		log.Println("waiting for expending..")
+		<-hm.waitCh
+	}
 	if hm.len+1 >= hm.expendFactor {
+		log.Println(fmt.Sprintf("(len=%d cap=%d), start expend..", hm.len, hm.cap))
 		if error = hm.extend(); error != nil {
 			return error
 		}
+		log.Println(fmt.Sprintf("expend done, current capacity=%d", hm.cap))
 		return hm.Store(k, v)
 	} else {
 		hm.lock.Lock()
@@ -256,20 +278,58 @@ func main() {
 		{"key2", "为什么你这么熟练啊??"},   // duplicate key
 		{"key4", "jojo,我不做人啦~~!"}, // duplicate key
 	}
+	var dataCollection2 = [...][2]string{
+		{"key1111", "this is a string"},
+		{"key2222", "为什么你这么熟练啊"},
+		{"key33333", "你不要过来啊"},
+		{"key44444", "jojo,我不做人啦!"},
+		{"key5333", "炸哇陆多!"},
+		{"key644", "kksk"},
+		{"key733", "ko~ ko~ da~ yo~"},
+		{"key81", "404"},
+		{"key9232", "打死白学家"},
+		{"key102", "1111"},
+		{"key114", "22222"},
+		{"key112", "3333"},
+		{"key12223", "吃我压路机~~~"},
+		{"key1334", "+++++"},
+		{"key2444", "为什么你这么熟练啊??"},  // duplicate key
+		{"key455", "jojo,我不做人啦~~!"}, // duplicate key
+	}
 
 	var hm = NewHashMap(0)
 
-	for _, data := range dataCollection {
-		_ = hm.Store(data[0], data[1])
-	}
+	//for _, data := range dataCollection {
+	//	_ = hm.Store(data[0], data[1])
+	//}
 	//fmt.Println(hm.len)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func(hm *HashMap, wg *sync.WaitGroup) {
+		for _, data := range dataCollection {
+			log.Printf("adding k=%s \n", data[0])
+			_ = hm.Store(data[0], data[1])
+		}
+		wg.Done()
+	}(hm, &wg)
+	go func(hm *HashMap, wg *sync.WaitGroup) {
+		for _, data := range dataCollection2 {
+			log.Printf("adding k=%s \n", data[0])
+			_ = hm.Store(data[0], data[1])
+		}
+		wg.Done()
+	}(hm, &wg)
+
+	wg.Wait()
 
 	//fmt.Println(hm.Get("key8"))
 	//fmt.Println(hm.Get("key199"))
 	//fmt.Println(hm.Get("key1"))
 
-	hm.print()
-	hm.Del("key4")
-	hm.Del("key13")
-	hm.print()
+	//hm.print()
+	//hm.Del("key4")
+	//hm.Del("key13")
+	//hm.print()
+
 }
