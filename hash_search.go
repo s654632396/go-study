@@ -5,15 +5,15 @@ package main
 //noinspection GoUnresolvedReference
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/OneOfOne/xxhash"
 	"log"
 	"math"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/OneOfOne/xxhash"
 )
 
 const (
@@ -47,7 +47,6 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 	hm.len = 0
 	hm.expendFactor = uint64(math.Floor(float64(hm.cap) * 0.75))
 	hm.repo = make([]*item, hm.cap, hm.cap)
-	hm.waitCh = make(chan int, 1)
 
 	return
 }
@@ -55,8 +54,9 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 //extend capacity
 func (hm *HashMap) extend() (error error) {
 	defer runtime.GC()
+	// lock by channel
+	hm.waitCh, hm.wait = make(chan int, 1), true
 
-	hm.wait = true
 	defer func() {
 		hm.waitCh <- 1
 		hm.wait = false
@@ -84,7 +84,7 @@ Crash:
 			}
 			item = item.next
 		}
-		time.Sleep(100 * time.Microsecond) // 模拟大数据扩容
+		// time.Sleep(100 * time.Microsecond) // 模拟大数据扩容
 	}
 	// notice: 这里只进行对等属性的copy, 不要直接*hm=*nhm
 	// *hm=*nhm会导致waitCh的丢失
@@ -99,7 +99,7 @@ Crash:
 // Store
 func (hm *HashMap) Store(k string, v interface{}) (error error) {
 	if hm.wait {
-		log.Println("waiting for expending..")
+		log.Println("call:Store, waiting for expending..")
 		<-hm.waitCh
 	}
 	if hm.len+1 >= hm.expendFactor {
@@ -143,6 +143,11 @@ func (hm *HashMap) Store(k string, v interface{}) (error error) {
 
 // Get: get value by key
 func (hm *HashMap) Get(k string) (v interface{}, hit bool) {
+	if hm.wait {
+		log.Println("call:Get, waiting for expending..")
+		<-hm.waitCh
+	}
+
 	hit = false
 	hash := hashKey(k)
 	index := hm.index(hash)
@@ -165,6 +170,11 @@ func (hm *HashMap) Get(k string) (v interface{}, hit bool) {
 }
 
 func (hm *HashMap) Del(k string) (v interface{}, ok bool) {
+	if hm.wait {
+		log.Println("call:Del, waiting for expending..")
+		<-hm.waitCh
+	}
+
 	hash := hashKey(k)
 	index := hm.index(hash)
 	if hm.repo[index] == nil {
@@ -234,7 +244,6 @@ func (hm *HashMap) print() {
 		if buffer.Len() > 0 {
 			fmt.Println(buffer.String())
 		}
-
 	}
 
 	fmt.Println(strings.Repeat("=", 20))
@@ -301,37 +310,93 @@ func main() {
 
 	var hm = NewHashMap(0)
 
-	//for _, data := range dataCollection {
-	//	_ = hm.Store(data[0], data[1])
-	//}
-	//fmt.Println(hm.len)
-	var wg sync.WaitGroup
-	wg.Add(2)
+	var (
+		wg  sync.WaitGroup
+		ch  = make(chan string, 10)
+		ch2 = make(chan string, 1)
+	)
+	// ctx, cancel := context.WithCancel(context.Background())
+	d := time.Now().Add(10000 * time.Millisecond)
+	ctx, cancel := context.WithDeadline(context.Background(), d)
+	defer cancel()
+
+	wg.Add(4)
+
+	// 测试方法:
+	// 开启4个goroutine, 2个并发写入, 1个读取, 1个删除
+	// 关闭读取和删除协程使用上下文timeout控制
 
 	go func(hm *HashMap, wg *sync.WaitGroup) {
 		for _, data := range dataCollection {
 			log.Printf("adding k=%s \n", data[0])
 			_ = hm.Store(data[0], data[1])
+			ch <- data[0]
 		}
 		wg.Done()
+
 	}(hm, &wg)
 	go func(hm *HashMap, wg *sync.WaitGroup) {
 		for _, data := range dataCollection2 {
 			log.Printf("adding k=%s \n", data[0])
 			_ = hm.Store(data[0], data[1])
+			ch <- data[0]
 		}
+
 		wg.Done()
 	}(hm, &wg)
 
+	go func(hm *HashMap, wg *sync.WaitGroup, ctx context.Context) {
+	END:
+		for {
+			select {
+			case key := <-ch:
+				if key == "key4" {
+					value, _ := hm.Get(key)
+					fmt.Println(fmt.Sprintf("GET HIT: k=%s, v=%s", key, value))
+				}
+				if key == "key733" {
+					value, _ := hm.Get(key)
+					fmt.Println(fmt.Sprintf("GET HIT: k=%s, v=%s", key, value))
+				}
+				if key == "key8" {
+					value, _ := hm.Get(key)
+					fmt.Println(fmt.Sprintf("GET HIT: k=%s, v=%s", key, value))
+				}
+				ch2 <- key // 读完了就写
+			case <-ctx.Done():
+				fmt.Println("timeout, close Get loop.")
+				break END
+			default:
+			}
+		}
+		wg.Done()
+	}(hm, &wg, ctx)
+
+	go func(hm *HashMap, wg *sync.WaitGroup, ctx context.Context) {
+		END:
+		for {
+			select {
+			case rk := <-ch2:
+				for _, key := range []string{"key102", "key9232", "key9"} {
+					if key == rk {
+						if deletedValue, ok := hm.Del(key); ok {
+							fmt.Printf("deleted: k=%s, v=%s\n", key, deletedValue)
+						} else {
+							fmt.Printf("delete failed, not hit key (%s)\n", key)
+						}
+					}
+				}
+
+			case <-ctx.Done():
+				fmt.Println("timeout, close Del loop.")
+				break END
+			}
+		}
+		wg.Done()
+	}(hm, &wg, ctx)
+
 	wg.Wait()
 
-	//fmt.Println(hm.Get("key8"))
-	//fmt.Println(hm.Get("key199"))
-	//fmt.Println(hm.Get("key1"))
-
-	//hm.print()
-	//hm.Del("key4")
-	//hm.Del("key13")
-	//hm.print()
+	hm.print()
 
 }
