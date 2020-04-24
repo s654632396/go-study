@@ -2,16 +2,18 @@ package main
 
 //@see: https://segmentfault.com/a/1190000022288951
 
+//noinspection GoUnresolvedReference
 import (
 	"bytes"
 	"fmt"
-	"github.com/OneOfOne/xxhash"
 	"log"
 	"math"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/OneOfOne/xxhash"
 )
 
 const (
