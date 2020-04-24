@@ -10,7 +10,6 @@ import (
 	"github.com/OneOfOne/xxhash"
 	"log"
 	"math"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -53,7 +52,7 @@ func NewHashMap(cap uint64) (hm *HashMap) {
 
 //extend capacity
 func (hm *HashMap) extend() (error error) {
-	defer runtime.GC()
+	// defer runtime.GC()
 	// lock by channel
 	hm.waitCh, hm.wait = make(chan int, 1), true
 
@@ -67,7 +66,6 @@ func (hm *HashMap) extend() (error error) {
 	 * Q&A:
 	 * Q: 如果在扩展中发生了Store或者Del操作,造成数据丢失等,应该如何处理这部分问题?
 	 * A: 对原型hashMap加锁,但是不能影响到Store操作
-	 * TODO:
 	 */
 Crash:
 	for _, item := range hm.repo {
@@ -84,7 +82,6 @@ Crash:
 			}
 			item = item.next
 		}
-		// time.Sleep(100 * time.Microsecond) // 模拟大数据扩容
 	}
 	// notice: 这里只进行对等属性的copy, 不要直接*hm=*nhm
 	// *hm=*nhm会导致waitCh的丢失
@@ -99,15 +96,12 @@ Crash:
 // Store
 func (hm *HashMap) Store(k string, v interface{}) (error error) {
 	if hm.wait {
-		log.Println("call:Store, waiting for expending..")
 		<-hm.waitCh
 	}
 	if hm.len+1 >= hm.expendFactor {
-		log.Println(fmt.Sprintf("(len=%d cap=%d), start expend..", hm.len, hm.cap))
 		if error = hm.extend(); error != nil {
 			return error
 		}
-		log.Println(fmt.Sprintf("expend done, current capacity=%d", hm.cap))
 		return hm.Store(k, v)
 	} else {
 		hm.lock.Lock()
@@ -144,7 +138,6 @@ func (hm *HashMap) Store(k string, v interface{}) (error error) {
 // Get: get value by key
 func (hm *HashMap) Get(k string) (v interface{}, hit bool) {
 	if hm.wait {
-		log.Println("call:Get, waiting for expending..")
 		<-hm.waitCh
 	}
 
@@ -171,7 +164,6 @@ func (hm *HashMap) Get(k string) (v interface{}, hit bool) {
 
 func (hm *HashMap) Del(k string) (v interface{}, ok bool) {
 	if hm.wait {
-		log.Println("call:Del, waiting for expending..")
 		<-hm.waitCh
 	}
 
@@ -250,6 +242,7 @@ func (hm *HashMap) print() {
 
 }
 
+//noinspection GoUnresolvedReference
 func hashKey(k string) (hash uint64) {
 	var h = xxhash.New64()
 	if _, err := h.Write([]byte(k)); err != nil {
@@ -270,7 +263,6 @@ func (hm *HashMap) debug() {
 }
 
 func main() {
-
 	var dataCollection = [...][2]string{
 		{"key1", "this is a string"},
 		{"key2", "为什么你这么熟练啊"},
@@ -311,16 +303,18 @@ func main() {
 	var hm = NewHashMap(0)
 
 	var (
-		wg  sync.WaitGroup
-		ch  = make(chan string, 10)
-		ch2 = make(chan string, 1)
+		wg     sync.WaitGroup
+		ch     = make(chan string, 50)
+		ch2    = make(chan string, 50)
+		doneCh = make(chan int, 2)
 	)
+
 	// ctx, cancel := context.WithCancel(context.Background())
-	d := time.Now().Add(10000 * time.Millisecond)
+	d := time.Now().Add(5000 * time.Millisecond)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
 
-	wg.Add(4)
+	wg.Add(3)
 
 	// 测试方法:
 	// 开启4个goroutine, 2个并发写入, 1个读取, 1个删除
@@ -328,24 +322,25 @@ func main() {
 
 	go func(hm *HashMap, wg *sync.WaitGroup) {
 		for _, data := range dataCollection {
-			log.Printf("adding k=%s \n", data[0])
+			log.Printf("[proc1]adding k=%s \n", data[0])
 			_ = hm.Store(data[0], data[1])
 			ch <- data[0]
 		}
+		doneCh <- 1
 		wg.Done()
-
 	}(hm, &wg)
 	go func(hm *HashMap, wg *sync.WaitGroup) {
 		for _, data := range dataCollection2 {
-			log.Printf("adding k=%s \n", data[0])
+			log.Printf("[proc2]adding k=%s \n", data[0])
 			_ = hm.Store(data[0], data[1])
 			ch <- data[0]
 		}
-
+		doneCh <- 1
 		wg.Done()
 	}(hm, &wg)
 
 	go func(hm *HashMap, wg *sync.WaitGroup, ctx context.Context) {
+		var done int = 0
 	END:
 		for {
 			select {
@@ -363,19 +358,6 @@ func main() {
 					fmt.Println(fmt.Sprintf("GET HIT: k=%s, v=%s", key, value))
 				}
 				ch2 <- key // 读完了就写
-			case <-ctx.Done():
-				fmt.Println("timeout, close Get loop.")
-				break END
-			default:
-			}
-		}
-		wg.Done()
-	}(hm, &wg, ctx)
-
-	go func(hm *HashMap, wg *sync.WaitGroup, ctx context.Context) {
-		END:
-		for {
-			select {
 			case rk := <-ch2:
 				for _, key := range []string{"key102", "key9232", "key9"} {
 					if key == rk {
@@ -386,9 +368,16 @@ func main() {
 						}
 					}
 				}
-
+			case <-doneCh:
+				done++
+				// 所有Store操作的协程都完成了
+				if done >= 2 {
+					break END
+				}
 			case <-ctx.Done():
-				fmt.Println("timeout, close Del loop.")
+				// 超时关闭
+				fmt.Println("timeout, close Get loop.")
+				time.Sleep(500 * time.Millisecond)
 				break END
 			}
 		}
@@ -396,7 +385,5 @@ func main() {
 	}(hm, &wg, ctx)
 
 	wg.Wait()
-
-	hm.print()
-
+	// hm.print()
 }
