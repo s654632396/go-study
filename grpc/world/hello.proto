@@ -1,0 +1,16 @@
+syntax = "proto3";
+package proto;
+option go_package = ".;world";
+
+message Hello {
+    string name = 1;
+    string message = 2;
+
+    enum sexType {
+        UNKNOWN = 0;
+        MALE = 1;
+        FEMALE = 2;
+    }
+
+    sexType sex = 3;
+}
