@@ -1,0 +1,19 @@
+[
+    {
+        "name": "test",
+        "path": "/opt/practice/goapp/ghrun",
+        "execute": "run",
+        "commands": {
+            "run": "go build ghrun.go && mv ghrun /home/mm2/"
+        },
+        "cmd_path": "/opt/practice/goapp/ghrun",
+        "mode": "background",
+        "log_file": "/var/log/test_ghrun.log",
+        "excludes": [
+            "*.swp",
+            ".git/*",
+            "ghrun"
+        ],
+        "scan_ticker": 2
+    }
+]
