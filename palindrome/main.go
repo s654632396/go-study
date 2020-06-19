@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	fmt.Println(isPalindrome(12344321))
+	fmt.Println(isPalindrome(123454321))
 }
 
 func isPalindrome(x int) bool {

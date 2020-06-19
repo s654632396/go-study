@@ -16,7 +16,7 @@ func main() {
 		Remark string `json:"Remark,omitempty"`
 	}
 
-	f, err := os.Open("/opt/practice/study-go/json/data.json")
+	f, err := os.Open("./json/data.json")
 	defer f.Close()
 	if err != nil {
 		panic(err)
