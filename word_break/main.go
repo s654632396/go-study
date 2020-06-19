@@ -162,6 +162,7 @@ func wordBreakII(s string, wordDict []string) []string {
 	log.Println("-------- word len between:", wordMinLen, "~", wordMaxLen)
 	log.Println("-------- be searched word length:", sLen)
 
+	var wordList = make(map[string][]int)
 	ijStack := make([][]int, 0)
 	cutBranches := make(map[int]int)
 	var matchCount int
@@ -194,6 +195,22 @@ SMV:
 		}
 		// 指针移动
 		if matched {
+			// 添加到词典里
+			if _, ok := wordList[s[i:j]]; !ok {
+				wordList[s[i:j]] = []int{i}
+			} else {
+				var exists bool
+				for _, wi := range wordList[s[i:j]] {
+					if wi == i {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					wordList[s[i:j]] = append(wordList[s[i:j]], i)
+				}
+			}
+
 			// 匹配到了
 			if j-i != wordMaxLen {
 				ijStack = append(ijStack, []int{i, j})
@@ -221,6 +238,18 @@ SMV:
 		//log.Println("stack remain:", len(ijStack), "popped stack, searching:", s, s[el[0]:])
 		goto SMV
 	}
+	var idx int = 1
+	for word, v := range wordList {
+		fmt.Println(word + ":")
+		for _, vv := range v {
+			fmt.Printf("[%d] \033[30m%s\033[34m%s\033[0m%s\n", idx, s[0:vv], s[vv:len(word)+vv], s[len(word)+vv:])
+			idx++
+		}
+	}
+	// 3-1-6
+	// 4-5-1-6
+	// 4-2-6
+
 	// log.Println("cutted branches:", cutBranches)
 	// log.Println("match count=", matchCount)
 	return sentences
