@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"time"
 )
 
 func main() {
-	//for i:=1;i<11;i++ {
-	//	testCase(i)
-	//}
-	testCaseII(2)
+	start := time.Now()
+	for i := 1; i <= 4; i++ {
+		testCaseII(i)
+	}
+	log.Println("cost all:", time.Now().Sub(start))
 }
 
 func testCase(c int) {
@@ -60,12 +62,15 @@ func testCaseII(c int) {
 	var wordDict []string
 	switch c {
 	case 1:
-		s = "goalspecial"
-		wordDict = []string{"go", "goal", "goals", "special"}
+		s = "catsanddog"
+		wordDict = []string{"cat", "cats", "and", "sand", "dog"}
 	case 2:
 		s = "pineapplepenapple"
 		wordDict = []string{"apple", "pen", "applepen", "pine", "pineapple"}
-	case 10:
+	case 3:
+		s = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		wordDict = []string{"a", "aa", "aaa", "aaaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaa", "aaaaaaaaaa"}
+	case 4:
 		s = "fohhemkkaecojceoaejkkoedkofhmohkcjmkggcmnami"
 		wordDict = []string{"kfomka", "hecagbngambii", "anobmnikj", "c", "nnkmfelneemfgcl", "ah", "bgomgohl", "lcbjbg", "ebjfoiddndih", "hjknoamjbfhckb", "eioldlijmmla", "nbekmcnakif", "fgahmihodolmhbi", "gnjfe", "hk", "b", "jbfgm", "ecojceoaejkkoed", "cemodhmbcmgl", "j", "gdcnjj", "kolaijoicbc", "liibjjcini", "lmbenj", "eklingemgdjncaa", "m", "hkh", "fblb", "fk", "nnfkfanaga", "eldjml", "iejn", "gbmjfdooeeko", "jafogijka", "ngnfggojmhclkjd", "bfagnfclg", "imkeobcdidiifbm", "ogeo", "gicjog", "cjnibenelm", "ogoloc", "edciifkaff", "kbeeg", "nebn", "jdd", "aeojhclmdn", "dilbhl", "dkk", "bgmck", "ohgkefkadonafg", "labem", "fheoglj", "gkcanacfjfhogjc", "eglkcddd", "lelelihakeh", "hhjijfiodfi", "enehbibnhfjd", "gkm", "ggj", "ag", "hhhjogk", "lllicdhihn", "goakjjnk", "lhbn", "fhheedadamlnedh", "bin", "cl", "ggjljjjf", "fdcdaobhlhgj", "nijlf", "i", "gaemagobjfc", "dg", "g", "jhlelodgeekj", "hcimohlni", "fdoiohikhacgb", "k", "doiaigclm", "bdfaoncbhfkdbjd", "f", "jaikbciac", "cjgadmfoodmba", "molokllh", "gfkngeebnggo", "lahd", "n", "ehfngoc", "lejfcee", "kofhmoh", "cgda", "de", "kljnicikjeh", "edomdbibhif", "jehdkgmmofihdi", "hifcjkloebel", "gcghgbemjege", "kobhhefbbb", "aaikgaolhllhlm", "akg", "kmmikgkhnn", "dnamfhaf", "mjhj", "ifadcgmgjaa", "acnjehgkflgkd", "bjj", "maihjn", "ojakklhl", "ign", "jhd", "kndkhbebgh", "amljjfeahcdlfdg", "fnboolobch", "gcclgcoaojc", "kfokbbkllmcd", "fec", "dljma", "noa", "cfjie", "fohhemkka", "bfaldajf", "nbk", "kmbnjoalnhki", "ccieabbnlhbjmj", "nmacelialookal", "hdlefnbmgklo", "bfbblofk", "doohocnadd", "klmed", "e", "hkkcmbljlojkghm", "jjiadlgf", "ogadjhambjikce", "bglghjndlk", "gackokkbhj", "oofohdogb", "leiolllnjj", "edekdnibja", "gjhglilocif", "ccfnfjalchc", "gl", "ihee", "cfgccdmecem", "mdmcdgjelhgk", "laboglchdhbk", "ajmiim", "cebhalkngloae", "hgohednmkahdi", "ddiecjnkmgbbei", "ajaengmcdlbk", "kgg", "ndchkjdn", "heklaamafiomea", "ehg", "imelcifnhkae", "hcgadilb", "elndjcodnhcc", "nkjd", "gjnfkogkjeobo", "eolega", "lm", "jddfkfbbbhia", "cddmfeckheeo", "bfnmaalmjdb", "fbcg", "ko", "mojfj", "kk", "bbljjnnikdhg", "l", "calbc", "mkekn", "ejlhdk", "hkebdiebecf", "emhelbbda", "mlba", "ckjmih", "odfacclfl", "lgfjjbgookmnoe", "begnkogf", "gakojeblk", "bfflcmdko", "cfdclljcg", "ho", "fo", "acmi", "oemknmffgcio", "mlkhk", "kfhkndmdojhidg", "ckfcibmnikn", "dgoecamdliaeeoa", "ocealkbbec", "kbmmihb", "ncikad", "hi", "nccjbnldneijc", "hgiccigeehmdl", "dlfmjhmioa", "kmff", "gfhkd", "okiamg", "ekdbamm", "fc", "neg", "cfmo", "ccgahikbbl", "khhoc", "elbg", "cbghbacjbfm", "jkagbmfgemjfg", "ijceidhhajmja", "imibemhdg", "ja", "idkfd", "ndogdkjjkf", "fhic", "ooajkki", "fdnjhh", "ba", "jdlnidngkfffbmi", "jddjfnnjoidcnm", "kghljjikbacd", "idllbbn", "d", "mgkajbnjedeiee", "fbllleanknmoomb", "lom", "kofjmmjm", "mcdlbglonin", "gcnboanh", "fggii", "fdkbmic", "bbiln", "cdjcjhonjgiagkb", "kooenbeoongcle", "cecnlfbaanckdkj", "fejlmog", "fanekdneoaammb", "maojbcegdamn", "bcmanmjdeabdo", "amloj", "adgoej", "jh", "fhf", "cogdljlgek", "o", "joeiajlioggj", "oncal", "lbgg", "elainnbffk", "hbdi", "femcanllndoh", "ke", "hmib", "nagfahhljh", "ibifdlfeechcbal", "knec", "oegfcghlgalcnno", "abiefmjldmln", "mlfglgni", "jkofhjeb", "ifjbneblfldjel", "nahhcimkjhjgb", "cdgkbn", "nnklfbeecgedie", "gmllmjbodhgllc", "hogollongjo", "fmoinacebll", "fkngbganmh", "jgdblmhlmfij", "fkkdjknahamcfb", "aieakdokibj", "hddlcdiailhd", "iajhmg", "jenocgo", "embdib", "dghbmljjogka", "bahcggjgmlf", "fb", "jldkcfom", "mfi", "kdkke", "odhbl", "jin", "kcjmkggcmnami", "kofig", "bid", "ohnohi", "fcbojdgoaoa", "dj", "ifkbmbod", "dhdedohlghk", "nmkeakohicfdjf", "ahbifnnoaldgbj", "egldeibiinoac", "iehfhjjjmil", "bmeimi", "ombngooicknel", "lfdkngobmik", "ifjcjkfnmgjcnmi", "fmf", "aoeaa", "an", "ffgddcjblehhggo", "hijfdcchdilcl", "hacbaamkhblnkk", "najefebghcbkjfl", "hcnnlogjfmmjcma", "njgcogemlnohl", "ihejh", "ej", "ofn", "ggcklj", "omah", "hg", "obk", "giig", "cklna", "lihaiollfnem", "ionlnlhjckf", "cfdlijnmgjoebl", "dloehimen", "acggkacahfhkdne", "iecd", "gn", "odgbnalk", "ahfhcd", "dghlag", "bchfe", "dldblmnbifnmlo", "cffhbijal", "dbddifnojfibha", "mhh", "cjjol", "fed", "bhcnf", "ciiibbedklnnk", "ikniooicmm", "ejf", "ammeennkcdgbjco", "jmhmd", "cek", "bjbhcmda", "kfjmhbf", "chjmmnea", "ifccifn", "naedmco", "iohchafbega", "kjejfhbco", "anlhhhhg"}
 	default:
@@ -73,7 +78,10 @@ func testCaseII(c int) {
 	}
 	fmt.Println(
 		"input:", s, wordDict,
-		"\nresult:", wordBreakII(s, wordDict))
+		"\nresult:")
+	for i, s := range wordBreakII(s, wordDict) {
+		fmt.Println("[", i, "]", s)
+	}
 }
 
 // https://leetcode-cn.com/problems/word-break/
@@ -143,11 +151,9 @@ SMV:
 // 条件和上一个相同
 
 func wordBreakII(s string, wordDict []string) []string {
-	var sentences = make([]string, 0)
-
 	sLen := len(s)
-	var wordMinLen int = math.MaxInt64
-	var wordMaxLen int = 1
+	var wordMinLen = math.MaxInt64
+	var wordMaxLen = 1
 	for _, word := range wordDict {
 		if len(word) > len(s) {
 			continue
@@ -159,58 +165,38 @@ func wordBreakII(s string, wordDict []string) []string {
 			wordMinLen = len(word)
 		}
 	}
-	log.Println("-------- word len between:", wordMinLen, "~", wordMaxLen)
-	log.Println("-------- be searched word length:", sLen)
-
-	var wordList = make(map[string][]int)
 	ijStack := make([][]int, 0)
-	cutBranches := make(map[int]int)
-	var matchCount int
+	cutBranches := make(map[int]bool)
 	i, j := 0, wordMinLen
 	var matched bool
-	var needSetCut bool
+	var matchCount int
+	var wordNodes = make(map[int]map[int]string)
 SMV:
 	for ; i <= sLen-1 && j <= sLen; {
-		if cutBranches[i] == 1 {
-			log.Println("\033[32;40;1mHit cut branch\u001B[0m:", i, "remain s=", s[i:])
+		if cutBranches[i] {
 			break
 		}
 		matched = false
-		log.Println(fmt.Sprintf("%s\033[31m%s\033[0m%s\r", s[0:i], s[i:j], s[j:]))
 		for _, word := range wordDict {
 			if word == s[i:j] {
 				if j == sLen {
-					//TODO: a new sentence
-					log.Println(fmt.Sprintf("\033[1;46;31m%s\033[0m%s\r", s[0:j], s[j:]))
 					matchCount++
-				} else {
-					log.Println(fmt.Sprintf("\033[1;31m%s\033[0m%s\r", s[0:j], s[j:]))
 				}
 				matched = true
 				break
 			} else {
 				matched = false
 			}
-			// time.Sleep(time.Millisecond)
 		}
 		// 指针移动
 		if matched {
-			// 添加到词典里
-			if _, ok := wordList[s[i:j]]; !ok {
-				wordList[s[i:j]] = []int{i}
-			} else {
-				var exists bool
-				for _, wi := range wordList[s[i:j]] {
-					if wi == i {
-						exists = true
-						break
-					}
-				}
-				if !exists {
-					wordList[s[i:j]] = append(wordList[s[i:j]], i)
-				}
+			// 如果匹配到了, 则记录到路径地图上
+			if wordNodes[i] == nil {
+				wordNodes[i] = make(map[int]string)
 			}
-
+			if _, ok := wordNodes[i][j]; !ok {
+				wordNodes[i][j] = s[i:j]
+			}
 			// 匹配到了
 			if j-i != wordMaxLen {
 				ijStack = append(ijStack, []int{i, j})
@@ -219,7 +205,6 @@ SMV:
 		} else
 		if j+1-i > wordMaxLen {
 			// no matched
-			needSetCut = true
 			break
 		} else {
 			j++
@@ -229,28 +214,50 @@ SMV:
 		el := ijStack[len(ijStack)-1]
 		ijStack = ijStack[:len(ijStack)-1]
 		// mark no need match suffix of s
-		if needSetCut {
-			cutBranches[el[1]] = 1
-			needSetCut = false // 复原
-			log.Println("-------- set cut branch point:", el[1], 1)
-		}
+		cutBranches[el[1]] = true
 		i, j = el[0], el[1]+1
-		//log.Println("stack remain:", len(ijStack), "popped stack, searching:", s, s[el[0]:])
 		goto SMV
 	}
-	var idx int = 1
-	for word, v := range wordList {
-		fmt.Println(word + ":")
-		for _, vv := range v {
-			fmt.Printf("[%d] \033[30m%s\033[34m%s\033[0m%s\n", idx, s[0:vv], s[vv:len(word)+vv], s[len(word)+vv:])
-			idx++
+	if matchCount == 0 {
+		return []string{}
+	}
+	// DP 构词
+	lastWordIndex := len(s)
+	preNodes := make([]int, 0)
+	var wdp = make(map[int]map[int][]string)
+	wdp[0] = make(map[int][]string)
+
+	for i := 1; i <= lastWordIndex; i++ {
+		for _, n := range preNodes {
+			if word, ok := wordNodes[n][i]; ok {
+				// wdp
+				if wdp[n] == nil {
+					wdp[n] = make(map[int][]string)
+				}
+				wdp[n][i] = []string{s[n:i]}
+				appendLen := len(wdp[0][n])
+				if wdp[0][i] == nil {
+					wdp[0][i] = make([]string, appendLen)
+					copy(wdp[0][i], wdp[0][n])
+				} else {
+					for _, e := range wdp[0][n] {
+						wdp[0][i] = append(wdp[0][i], e)
+					}
+				}
+				for x := len(wdp[0][i]) - appendLen; x < len(wdp[0][i]); x++ {
+					wdp[0][i][x] += " " + word
+				}
+			}
+		}
+		if _, ok := wordNodes[0][i]; ok {
+			if wdp[0][i] == nil {
+				wdp[0][i] = make([]string, 0)
+			}
+			wdp[0][i] = append(wdp[0][i], s[0:i])
+		}
+		if len(wdp[0][i]) > 0 {
+			preNodes = append(preNodes, i)
 		}
 	}
-	// 3-1-6
-	// 4-5-1-6
-	// 4-2-6
-
-	// log.Println("cutted branches:", cutBranches)
-	// log.Println("match count=", matchCount)
-	return sentences
+	return wdp[0][sLen]
 }
