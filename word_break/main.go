@@ -154,6 +154,7 @@ func wordBreakII(s string, wordDict []string) []string {
 	sLen := len(s)
 	var wordMinLen = math.MaxInt64
 	var wordMaxLen = 1
+	var validChars = make(map[byte]bool)
 	for _, word := range wordDict {
 		if len(word) > len(s) {
 			continue
@@ -163,6 +164,14 @@ func wordBreakII(s string, wordDict []string) []string {
 		}
 		if len(word) < wordMinLen {
 			wordMinLen = len(word)
+		}
+		for _, b := range ([]byte)(word) {
+			validChars[b] = true
+		}
+	}
+	for _, b := range ([]byte)(s) {
+		if _, ok := validChars[b]; !ok {
+			return []string{}
 		}
 	}
 	ijStack := make([][]int, 0)

@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"regexp"
+	"sort"
 	"strconv"
 )
 
 // 写着玩玩
 // 日麻牌理
-// 定义 万 = m | 饼 = p | 索 = s | 东南西北白发中 = 1234567z
+// 定义 TypeM = m | TypeP = p | TypeS = s | 东南西北白发中 = 1234567z
 // 定义 红5 = 0
 var CardMap = map[string]int64{
 	"1z": 0x1F000,
@@ -47,41 +49,47 @@ var CardMap = map[string]int64{
 	"9p": 0x1F021,
 }
 
-type 张类型 string
+type CardType string
 
 const (
-	万 张类型 = "m"
-	索 张类型 = "s"
-	饼 张类型 = "p"
-	字 张类型 = "z"
+	TypeM CardType = "m"
+	TypeP CardType = "p"
+	TypeS CardType = "s"
+	TypeZ CardType = "z"
+)
+const (
+	PadTypeM int = 0
+	PadTypeP int = 1
+	PadTypeS int = 2
+	PadTypeZ int = 3
 )
 
-type 张 struct {
+type Card struct {
 	num int // range of 1~9
-	t   张类型
+	t   CardType
 }
 
-func (z *张) String() string {
+func (z *Card) String() string {
 	n := strconv.Itoa(z.num)
 	return n + string(z.t)
 }
 
 var (
-	听牌枚数 = []int{4, 7, 10, 13}
-	和牌枚数 = []int{5, 8, 11, 14}
+	WaitNumber = []int{4, 7, 10, 13}
+	PushNumber = []int{5, 8, 11, 14}
 )
 
-type 听牌类型 string
+type WaitType string
 
 const (
-	两面 听牌类型 = "1"
-	坎张 听牌类型 = "2"
-	边听 听牌类型 = "3"
-	钓将 听牌类型 = "4"
+	WaitTwoPiece  WaitType = "1" // 两面
+	WaitInPiece   WaitType = "2" // 坎张
+	WaitSidePiece WaitType = "3" // 边张
+	WaitPairPiece WaitType = "4" // 单骑
 )
 
 func main() {
-	var handCardstring string = "123m123p22334s11z"
+	var handCardstring string = "889123m23234s67z"
 	var handCard = ReadHandCard(handCardstring)
 	// fmt.Printf("handCard is : %+v\n", handCard)
 	ToUnicode(handCard)
@@ -90,7 +98,7 @@ func main() {
 }
 
 // ToUnicode Output of Unicode
-func ToUnicode(hc []张) {
+func ToUnicode(hc []Card) {
 	for _, item := range hc {
 		fmt.Print(string(CardMap[item.String()]), " ")
 	}
@@ -98,7 +106,7 @@ func ToUnicode(hc []张) {
 }
 
 // ReadHandCard  读取手牌字符串，转换为手牌数组
-func ReadHandCard(hcs string) (ret []张) {
+func ReadHandCard(hcs string) (ret []Card) {
 
 	re, _ := regexp.Compile("[0-9]{1,14}[m|p|s|z]")
 	// fmt.Println(re.MatchString(hcs))
@@ -108,7 +116,7 @@ func ReadHandCard(hcs string) (ret []张) {
 		pieceNum, pieceMark := v[:pieceLen-1], v[pieceLen-1:]
 		for _, n := range []rune(pieceNum) {
 			number, _ := strconv.Atoi(string(n))
-			zhang := 张{number, (张类型)(pieceMark)}
+			zhang := Card{number, (CardType)(pieceMark)}
 			ret = append(ret, zhang)
 		}
 	}
@@ -117,21 +125,28 @@ func ReadHandCard(hcs string) (ret []张) {
 }
 
 // ReadTallyCount 读取向听数 max = 6, min = 0
-func ReadTallyCount(hc []张) (tc int) {
+func ReadTallyCount(hc []Card) (tc int) {
 	// thirteenTallyCount := getThirteenTallyCount(hc)
 	// fmt.Printf("国士无双向听听数为: %d \n", thirteenTallyCount)
 
 	// sevenPairsCount := getSevenPairsCount(hc)
 	// fmt.Printf("七对子向听数为: %d \n", sevenPairsCount)
 
-	nornalTallyCount := getNormalTallyCount(hc)
-	fmt.Printf("普通牌型向听数为: %d \n", nornalTallyCount)
+	_ = getNormalTallyCount(hc)
+	// fmt.Printf("普通牌型向听数为: %d \n", nornalTallyCount)
 	return
 }
 
 // getNormalTallyCount 取正常手顺牌型向听
-func getNormalTallyCount(hc []张) (ret int) {
+func getNormalTallyCount(hc []Card) (ret int) {
 	ret = 4
+
+	calculate(hc)
+
+	return
+}
+
+func calculate(cards []Card) {
 	// fmt.Println(hc)
 	// 和牌牌型要满足 3n * 4 + 2p的公式
 	// 3n 是连续的3张数牌或者相同的牌
@@ -144,33 +159,226 @@ func getNormalTallyCount(hc []张) (ret int) {
 
 	// fmt.Println(hc)
 	// var itc = 4 // 起始向听数 ***再大的向听也记为4向听
-	//
-	var (
-		typeM []int
-		typeP []int
-		typeS []int
-		typeZ []int
-	)
-	for _, c := range hc {
-		cardNum, cardType := c.num, c.t
+	cardMatrix := getGroup(cards)
+	// log.Println(cardMatrix)
+	// 尽可能组合所有可能的拆解
+	//_, shared := pickUnsharedCard([]int{1,1,1,2,3,4,5,5,5})
+	hands := make([]int, len(cardMatrix[0])+len(cardMatrix[1])+len(cardMatrix[2])+len(cardMatrix[3]))
+	// 1~9 		--- M
+	// 11~19 	--- P
+	// 21~29	--- S
+	// 31~37	--- Z
 
-		switch cardType {
-		case 万:
-			typeM = append(typeM, cardNum)
-		case 饼:
-			typeP = append(typeP, cardNum)
-		case 索:
-			typeS = append(typeS, cardNum)
-		case 字:
-			typeZ = append(typeZ, cardNum)
+	for i, padFix := 0, 0; i < len(hands); {
+		for _, card := range cardMatrix[padFix] {
+			hands[i] = padFix*10 + card
+			i++
+		}
+		padFix++
+	}
+	log.Println(hands)
+	soloCards, sharedCards := pickUnsharedCard(hands)
+	log.Println(soloCards, sharedCards)
+	inlineSharedCards(sharedCards)
+}
+
+type CardShunIface interface{}
+type CardShun []int
+type KeziShun CardShun
+type SeqShun CardShun
+type DaziShun CardShun
+type QuetouShun CardShun
+
+func inlineSharedCards(sharedCards []int) {
+	log.Println("sharedCards=", sharedCards)
+	// combines := make([][]CardShunIface, 0)
+	hcMap := make(map[int]int)
+	for _, x := range sharedCards {
+		hcMap[x] ++
+	}
+	var cpHcMap = make(map[int]int)
+	var uniques = make([]int, 0)
+	for k, v := range hcMap {
+		cpHcMap[k] = v
+		uniques = append(uniques, k)
+	}
+
+	var counter = len(sharedCards)
+
+	var combine = make([]CardShunIface, 0)
+	for ; counter >= 0; counter-- {
+		var hasQuetou bool
+		// calculate
+	NewCardShun:
+		for _, x := range uniques {
+			if cpHcMap[x] <= 0 {
+				continue
+			}
+			cpHcMap[x]--
+			padFix := x / 10
+			lx, rx := max(x-2, padFix*10+1), min(x+2, padFix*10+9)
+			for _, y := range uniques {
+				if cpHcMap[y] <= 0 {
+					continue
+				}
+				if y < lx || y > rx {
+					continue
+				}
+				cpHcMap[y]--
+				exps := parseDazi(x, y, padFix)
+				for _, z := range exps {
+					if _, ok := cpHcMap[z]; !ok {
+						continue
+					}
+					if cpHcMap[z] == 0 {
+						continue
+					}
+					cpHcMap[z]--
+					if x == y {
+						combine = append(combine, KeziShun{x, y, z})
+					} else {
+						combine = append(combine, SeqShun{x, y, z})
+					}
+					log.Println("matched:", x, y, z, cpHcMap)
+					continue NewCardShun
+				}
+				// no matched z
+				if x == y && !hasQuetou {
+					combine = append(combine, QuetouShun{x, y})
+				}
+				if x == y && hasQuetou {
+					combine = append(combine, DaziShun{x, y})
+				}
+				if x != y {
+					combine = append(combine, DaziShun{x, y})
+				}
+				continue NewCardShun
+			}
+			// no matched ---
+			cpHcMap[x]++
 		}
 	}
-	fmt.Printf("typeM=%+v, typeP=%+v, typeS=%+v, typeZ=%+v \n", typeM, typeP, typeS, typeZ)
+	log.Println(combine, cpHcMap)
+}
+
+func parseDazi(x, y int, padFix int) (expects []int) {
+	if x == y {
+		expects = []int{x}
+		return
+	}
+	if x > y {
+		x, y = y%10, x%10
+	}
+	if x+1 == y {
+		if x == 1 {
+			expects = []int{padFix*10 + 3}
+		} else if x == 8 {
+			expects = []int{padFix*10 + 7}
+		} else {
+			expects = []int{padFix*10 + x - 1, padFix*10 + y + 1}
+		}
+	} else if x+2 == y {
+		if x == 1 {
+			expects = []int{padFix*10 + 2}
+		} else if x == 7 {
+			expects = []int{padFix*10 + 8}
+		} else {
+			expects = []int{padFix*10 + x + 1}
+		}
+	} else {
+		panic(`unknown err occurred`)
+	}
 	return
 }
 
-func calculate(cards []int) {
+func getGroup(cards []Card) (cardMatrix [][]int) {
+	cardMatrix = make([][]int, 4) // 4列, 依次为M,P,S,Z
+	cardMatrix[0] = make([]int, 0)
+	cardMatrix[1] = make([]int, 0)
+	cardMatrix[2] = make([]int, 0)
+	cardMatrix[3] = make([]int, 0)
+	for _, c := range cards {
+		cardNum, cardType := c.num, c.t
+		switch cardType {
+		case TypeM:
+			cardMatrix[0] = append(cardMatrix[0], cardNum)
+		case TypeP:
+			cardMatrix[1] = append(cardMatrix[1], cardNum)
+		case TypeS:
+			cardMatrix[2] = append(cardMatrix[2], cardNum)
+		case TypeZ:
+			cardMatrix[3] = append(cardMatrix[3], cardNum)
+		}
+	}
+	// 简单点,先排个序
+	sort.Ints(cardMatrix[0])
+	sort.Ints(cardMatrix[1])
+	sort.Ints(cardMatrix[2])
+	sort.Ints(cardMatrix[3])
+	return
+}
 
+// 挑出孤张
+func pickUnsharedCard(list []int) (unshared, shared []int) {
+	if len(list) == 1 {
+		unshared = list
+	}
+	for i := 0; i < len(list); i++ {
+		var flag bool
+		padFix := list[i] / 10
+		var l, r int     // 计算靠张边界
+		if padFix == 3 { // 字牌靠张等于自己
+			r, l = list[i], list[i]
+		} else {
+			l, r = max(list[i]-2, padFix*10+1), min(list[i]+2, padFix*10+9)
+		}
+		for j := 0; j < len(list); j++ {
+			if i == j {
+				continue
+			}
+			if list[j] >= l && list[j] <= r {
+				shared = append(shared, list[i])
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			unshared = append(unshared, list[i])
+		}
+	}
+	return
+}
+
+func max(a, b int) int {
+	if a < b {
+		return b
+	} else {
+		return a
+	}
+}
+
+func min(a, b int) int {
+	if a > b {
+		return b
+	} else {
+		return a
+	}
+}
+
+// 是否对子
+func isPairs(x, y int) bool {
+	return x == y
+}
+
+// 是否刻子
+func isColumnPair(x, y, z int) bool {
+	return x == y && y == z
+}
+
+// 是否顺子
+// x,y,z must be sorted
+func isSequencePair(x, y, z int) bool {
+	return x+1 == y && y+1 == z
 }
 
 // ------------
@@ -181,25 +389,25 @@ type UniqueTypeCardCollate struct {
 	cardMap structMap
 }
 
-func (utcc *UniqueTypeCardCollate) pushCard(card string) {
-	if utcc.cardMap == nil {
-		utcc.cardMap = make(structMap)
+func (cc *UniqueTypeCardCollate) SetCard(card string) {
+	if cc.cardMap == nil {
+		cc.cardMap = make(structMap)
 	}
-	utcc.cardMap[card]++
+	cc.cardMap[card]++
 }
 
-func (utcc *UniqueTypeCardCollate) existsCard(card string) bool {
+func (cc *UniqueTypeCardCollate) existsCard(card string) bool {
 	var ret = false
-	if _, ok := utcc.cardMap[card]; ok {
+	if _, ok := cc.cardMap[card]; ok {
 		ret = true
 	}
 	return ret
 }
 
 // 数对子
-func (utcc *UniqueTypeCardCollate) coupleCount() int {
+func (cc *UniqueTypeCardCollate) coupleCount() int {
 	var count int = 0
-	for _, v := range utcc.cardMap {
+	for _, v := range cc.cardMap {
 		if v >= 2 {
 			count++
 		}
@@ -221,7 +429,7 @@ func getThirteenTallyCount(hc []string) (ret int) {
 		for _, handCard := range hc {
 			if handCard == card {
 				if cardSet.existsCard(card) == false {
-					cardSet.pushCard(card)
+					cardSet.SetCard(card)
 					ret--
 				} else {
 					hasCoupleCard = true
@@ -241,7 +449,7 @@ func getSevenPairsCount(hc []string) (ret int) {
 
 	var cardSet UniqueTypeCardCollate
 	for _, card := range hc {
-		cardSet.pushCard(card)
+		cardSet.SetCard(card)
 	}
 
 	ret = 6 - cardSet.coupleCount()
