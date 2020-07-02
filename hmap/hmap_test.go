@@ -1,4 +1,4 @@
-package hashmap
+package hmap
 
 import (
 	"context"
@@ -17,6 +17,7 @@ func BenchmarkHashMap_Store(b *testing.B) {
 	}
 	log.Println(fmt.Sprintf("Hash Map expending capacity to %d", hm.cap))
 	log.Println("[BenchmarkHashMap_Store] Over.")
+	b.SkipNow()
 }
 
 // 并发测试

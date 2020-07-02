@@ -1,4 +1,4 @@
-module github.com/s654632396/mpkg/hashmap
+module hmap
 
 go 1.13
 
