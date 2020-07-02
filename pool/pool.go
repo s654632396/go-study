@@ -70,7 +70,7 @@ func (p *Pool) Put(v interface{}) {
 	p.mu.Unlock()
 }
 
-// Len returns the number of items in pool.
+// Size returns the number of items in pool.
 func (p *Pool) Len() int64 {
 	var l int64
 	p.mu.Lock()
