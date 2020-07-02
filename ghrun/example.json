@@ -1,19 +1,18 @@
 [
     {
         "name": "test",
-        "path": "/opt/practice/goapp/ghrun",
+        "path": "/opt/practice/gdcache",
         "execute": "run",
         "commands": {
-            "run": "go build ghrun.go && mv ghrun /home/mm2/"
+            "run": "date"
         },
-        "cmd_path": "/opt/practice/goapp/ghrun",
-        "mode": "background",
-        "log_file": "/var/log/test_ghrun.log",
+        "cmd_path": "/opt/practice/gdcache",
+        "mode": "foreground",
+        "log_file": "/tmp/test_ghrun.log",
         "excludes": [
             "*.swp",
-            ".git/*",
-            "ghrun"
+            ".git/*"
         ],
-        "scan_ticker": 2
+        "scan_ticker": 1
     }
 ]
