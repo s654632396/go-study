@@ -6,66 +6,59 @@ import (
 )
 
 const (
-	MaxSerialID = 4096 << 1
+	TimeStampShiftNum int64 = 22
+	MachineShiftNum   int64 = 13
+	MaxSerialID       int64 = 1 << MachineShiftNum
 )
 
-var SerialCh chan int
-var OffsetTS int64
+var offsetTS int64
 
 type SnowID struct {
-	machineID  uint8
-	mTimeStamp int64
+	machineID int64
+	mts       int64
+	serialID  int64
+	lastTs    int64
+	lck       sync.Mutex
 }
 
-func GID(machineID uint8) uint64 {
-	sid := SnowID{machineID, -1}
-	var realID uint64 = 0
-	realID ^= uint64(sid.getMicroTS()) << 22
-	realID ^= uint64(sid.machineID) << 13
-	serialID := sid.getSerialNum()
-	realID ^= uint64(serialID)
-	return realID
+func NewSnowID(ts int64, machineID int64) *SnowID {
+	offsetTS = ts
+	var sid *SnowID
+	sid = new(SnowID)
+	sid.machineID, sid.mts = machineID, getCurrentTS()
+	return sid
 }
 
-func (sid *SnowID) getMicroTS() int64 {
-	if sid.mTimeStamp == -1 {
-		sid.mTimeStamp = getCurrentTS()
+func (sid *SnowID) GID() int64 {
+	sid.lck.Lock()
+	defer sid.lck.Unlock()
+
+	sid.mts = getCurrentTS()
+	sid.getSerialNum()
+	if sid.serialID >= MaxSerialID {
+
 	}
-	return sid.mTimeStamp
+	return (sid.mts << TimeStampShiftNum) | (sid.machineID << MachineShiftNum) | sid.serialID
 }
 
 func getCurrentTS() int64 {
-	return (time.Now().UnixNano() / 1000000) - OffsetTS
+	return (time.Now().UnixNano() / 1e6) - offsetTS
 }
 
-func InitSnowSerial(ts int64) {
-
-	var single sync.Once
-	single.Do(func() {
-		// init vars and serial-id-gen-goroutine
-		OffsetTS = ts
-		SerialCh = make(chan int, 0)
-		go func() {
-			var lastTS int64
-			for i := 0; i < MaxSerialID; i++ {
-				if getCurrentTS() != lastTS {
-					i = 0
-					lastTS = getCurrentTS() // update
-					SerialCh <- i
-				} else {
-					SerialCh <- i // ret
-				}
-			}
-			panic(`serial ID max value arrived, generate failed!`)
-		}()
-	})
-
-}
-
-func (sid *SnowID) getSerialNum() int {
-	if SerialCh == nil {
-
+func (sid *SnowID) getSerialNum() int64 {
+	if sid.mts == sid.lastTs {
+		sid.serialID ++
+	} else {
+		sid.serialID = 0
 	}
+	sid.lastTs = sid.mts
+	return sid.serialID
+}
 
-	return <-SerialCh
+func ParseSnowID(sid int64) (microTS time.Time, serial int64) {
+	const tsMask = 0x1ffffffffff << TimeStampShiftNum
+	var microTimeStamp = int64((tsMask&sid)>>TimeStampShiftNum) + offsetTS
+	microTS, serial = time.Unix(microTimeStamp/1e3, 1e6*(microTimeStamp%1e3)), sid&(MaxSerialID-1)
+
+	return
 }
