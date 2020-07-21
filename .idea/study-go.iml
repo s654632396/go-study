@@ -9,8 +9,6 @@
     </option>
   </component>
   <component name="NewModuleRootManager">
-    <content url="file://$USER_HOME$/go/src/github.com/s654632396" />
-    <content url="file://$MODULE_DIR$/../goapp" />
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

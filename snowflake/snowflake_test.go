@@ -1,6 +1,7 @@
 package snowflake
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -26,7 +27,7 @@ func TestNewSF(t *testing.T) {
 	m.data = make(map[int64]int)
 
 	var wg sync.WaitGroup
-	pn := 16
+	pn := runtime.NumCPU()
 	loop := 4e7 / pn
 	wg.Add(pn)
 

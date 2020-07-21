@@ -90,17 +90,18 @@ const (
 
 func main() {
 	var handCardstring string = "889123m23234s67z"
+	handCardstring = "2222333344445s"
+	// handCardstring = "147s258m369p34567z"
 	var handCard = ReadHandCard(handCardstring)
 	// fmt.Printf("handCard is : %+v\n", handCard)
 	ToUnicode(handCard)
 	ReadTallyCount(handCard)
-
 }
 
 // ToUnicode Output of Unicode
 func ToUnicode(hc []Card) {
 	for _, item := range hc {
-		fmt.Print(string(CardMap[item.String()]), " ")
+		fmt.Printf("\033[36m%s \033[0m", string(CardMap[item.String()]))
 	}
 	fmt.Println()
 }
@@ -139,126 +140,148 @@ func ReadTallyCount(hc []Card) (tc int) {
 
 // getNormalTallyCount 取正常手顺牌型向听
 func getNormalTallyCount(hc []Card) (ret int) {
-	ret = 4
+	ret = 10000
 
-	calculate(hc)
+	gn := toGeneralNumber(hc)
+
+	seq := toSequence(gn)
+
+	log.Println("gn:", gn)
+	log.Println("seq:", seq)
+	// 读取有几个面子
+	resolveSequence(seq)
 
 	return
 }
 
-func calculate(cards []Card) {
-	// fmt.Println(hc)
-	// 和牌牌型要满足 3n * 4 + 2p的公式
-	// 3n 是连续的3张数牌或者相同的牌
-	// 2p 是任意相同的2枚牌
-
-	// 如果定义听牌向听数 X = 0
-	// 有且仅有一个2p时，算  - 1
-	// 每个序列每满足一个3n时， 算 - 1
-	// 则 Ymax - 1 * 4 = X ,  Ymax = 4
-
-	// fmt.Println(hc)
-	// var itc = 4 // 起始向听数 ***再大的向听也记为4向听
-	cardMatrix := getGroup(cards)
-	// log.Println(cardMatrix)
-	// 尽可能组合所有可能的拆解
-	//_, shared := pickUnsharedCard([]int{1,1,1,2,3,4,5,5,5})
-	hands := make([]int, len(cardMatrix[0])+len(cardMatrix[1])+len(cardMatrix[2])+len(cardMatrix[3]))
-	// 1~9 		--- M
-	// 11~19 	--- P
-	// 21~29	--- S
-	// 31~37	--- Z
-
-	for i, padFix := 0, 0; i < len(hands); {
-		for _, card := range cardMatrix[padFix] {
-			hands[i] = padFix*10 + card
-			i++
-		}
-		padFix++
-	}
-	log.Println(hands)
-	soloCards, sharedCards := pickUnsharedCard(hands)
-	log.Println(soloCards, sharedCards)
-	inlineSharedCards(sharedCards)
+type SeqParse struct {
+	sureHead         bool // 是否确定了雀头
+	tripletPanelNum  int  // 刻子数
+	StraightPanelNum int  // 顺子数
+	twinPairNum      int  // 对搭子数
+	linearPairNum    int  // 顺搭子数
 }
 
-type CardShunIface interface{}
-type CardShun []int
-type KeziShun CardShun
-type SeqShun CardShun
-type DaziShun CardShun
-type QuetouShun CardShun
-
-func inlineSharedCards(sharedCards []int) {
-	log.Println("sharedCards=", sharedCards)
-	// combines := make([][]CardShunIface, 0)
-	hcMap := make(map[int]int)
-	for _, x := range sharedCards {
-		hcMap[x] ++
-	}
-	var cpHcMap = make(map[int]int)
-	var uniques = make([]int, 0)
-	for k, v := range hcMap {
-		cpHcMap[k] = v
-		uniques = append(uniques, k)
-	}
-
-	var counter = len(sharedCards)
-
-	var combine = make([]CardShunIface, 0)
-	for ; counter >= 0; counter-- {
-		var hasQuetou bool
-		// calculate
-	NewCardShun:
-		for _, x := range uniques {
-			if cpHcMap[x] <= 0 {
-				continue
-			}
-			cpHcMap[x]--
-			padFix := x / 10
-			lx, rx := max(x-2, padFix*10+1), min(x+2, padFix*10+9)
-			for _, y := range uniques {
-				if cpHcMap[y] <= 0 {
-					continue
-				}
-				if y < lx || y > rx {
-					continue
-				}
-				cpHcMap[y]--
-				exps := parseDazi(x, y, padFix)
-				for _, z := range exps {
-					if _, ok := cpHcMap[z]; !ok {
-						continue
-					}
-					if cpHcMap[z] == 0 {
-						continue
-					}
-					cpHcMap[z]--
-					if x == y {
-						combine = append(combine, KeziShun{x, y, z})
-					} else {
-						combine = append(combine, SeqShun{x, y, z})
-					}
-					log.Println("matched:", x, y, z, cpHcMap)
-					continue NewCardShun
-				}
-				// no matched z
-				if x == y && !hasQuetou {
-					combine = append(combine, QuetouShun{x, y})
-				}
-				if x == y && hasQuetou {
-					combine = append(combine, DaziShun{x, y})
-				}
-				if x != y {
-					combine = append(combine, DaziShun{x, y})
-				}
-				continue NewCardShun
-			}
-			// no matched ---
-			cpHcMap[x]++
+func resolveSequence(seq []int) {
+	// 确定方法:
+	// 先固定缺头, 寻找seq中可固定的雀头,然后减去雀头后的seq集合
+	var noHeads = make([][]int, 0)
+	for i := 0; i < len(seq); i++ {
+		if seq[i] >= 2 {
+			tmp := make([]int, len(seq))
+			copy(tmp, seq)
+			tmp[i] -= 2
+			noHeads = append(noHeads, tmp)
 		}
 	}
-	log.Println(combine, cpHcMap)
+	// 没有雀头或者不管有没有雀头,都只查面子的情况
+	noHeads = append(noHeads, seq)
+	log.Println(noHeads)
+	// 开始为每一个无头seq匹配面子
+	var parses = make([]SeqParse, len(noHeads))
+	for i := 0; i < len(noHeads); i++ {
+		if i == len(noHeads)-1 {
+			parses[i] = parseSequence(noHeads[i], false)
+		} else {
+			parses[i] = parseSequence(noHeads[i], true)
+		}
+	}
+}
+
+func parseSequence(seq []int, sureHead bool) (sp SeqParse) {
+	if sureHead {
+		sp.sureHead = true
+	}
+	// cuts := make([][]int, 0)
+
+	// 面子的基本构成
+	// panel 111
+	// panel 3
+	// 搭子的基本构成
+	// matcher 11
+	// matcher 2
+
+	// 先找0, 按0来split
+	seqParts := make([]string, 0)
+	var s string
+	for i := 0; i < len(seq); i++ {
+		if seq[i] > 0 {
+			s += strconv.Itoa(seq[i])
+		} else {
+			seqParts = append(seqParts, s)
+			s = ""
+		}
+		if i == len(seq)-1 && s != "" {
+			seqParts = append(seqParts, s)
+		}
+	}
+	log.Println("start parse seq:", seq, sureHead, "seqParts:", seqParts)
+
+	return
+}
+
+func toSequence(gn []int) []int {
+	var seq = make([]int, 0)
+	for i := 0; i < len(gn); i++ {
+		cur := gn[i]
+		seq = append(seq, 1)
+		var curIdx = len(seq) - 1
+		var next int
+		for j := i + 1; j < i+1+3 && j < len(gn); j++ {
+			next = gn[j]
+			if isBorderStartTile(next) {
+				seq = append(seq, 0)
+				break
+			} else
+			if next == cur {
+				seq[curIdx]++
+				i = j
+
+			} else
+			if next == cur+1 {
+				break
+			} else
+			if next-cur > 1 {
+				seq = append(seq, 0)
+				break
+			}
+		}
+	}
+
+	return seq
+}
+
+func isBorderStartTile(t int) bool {
+	if t == 10 || t == 19 || t >= 28 {
+		return true
+	} else {
+		return false
+	}
+}
+
+func toGeneralNumber(hc []Card) (gn []int) {
+	// 1~9 s
+	// 10~18 m
+	// 19~27 p
+	// 28~34 east south west north red green white
+	gn = make([]int, len(hc))
+	for i := 0; i < len(hc); i++ {
+		//log.Println(hc[i].t, hc[i].num)
+		var num int
+		switch hc[i].t {
+		case "s":
+			num = hc[i].num
+		case "m":
+			num = hc[i].num + 9
+		case "p":
+			num = hc[i].num + 18
+		case "z":
+			num = hc[i].num + 27
+		}
+		gn[i] = num
+	}
+	sort.Ints(gn)
+	return
 }
 
 func parseDazi(x, y int, padFix int) (expects []int) {

@@ -9,15 +9,47 @@ import (
 
 func main() {
 
-	fmt.Println(permute([]int{1, 2, 3}))
+	var trangle = [][]int{{2}, {3, 4}, {6, 5, 7}, {4, 1, 8, 3}}
 
+	fmt.Println(minimumTotal(trangle))
+
+}
+
+// https://leetcode-cn.com/problems/triangle/
+// 三角形最小路径和
+func minimumTotal(triangle [][]int) int {
+	var sum int
+	var depth = len(triangle)
+	var dp = make([][]int, depth)
+
+	return sum
 }
 
 // 全排列
 func permute(nums []int) [][]int {
 	var all = make([][]int, 0)
+	if len(nums) == 1 {
+		return [][]int{{nums[0]}}
+	}
+	if len(nums) == 2 {
+		return [][]int{{nums[0], nums[1]}, {nums[1], nums[0]}}
+	}
+	var cpNums = make([]int, len(nums))
+	copy(cpNums, nums)
 
-
+	var idx = 0
+	for i := 0; i < len(nums); i++ {
+		cpNums[0], cpNums[i] = cpNums[i], cpNums[0]
+		subAll := permute(cpNums[1:])
+		for j := 0; j < len(subAll); j++ {
+			tmp := make([]int, len(nums))
+			tmp[0] = cpNums[0]
+			copy(tmp[1:], subAll[j])
+			all = append(all, make([]int, len(nums)))
+			copy(all[idx], tmp)
+			idx++
+		}
+	}
 
 	return all
 }

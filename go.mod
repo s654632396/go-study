@@ -3,10 +3,10 @@ module study_go
 go 1.13
 
 require (
-	github.com/faiface/mainthread v0.0.0-20171120011319-8b78f0a41ae3
 	github.com/g3n/engine v0.1.0
 	github.com/go-gl/glfw v0.0.0-20200625191551-73d3c3675aa3 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
+	github.com/google/go-cmp v0.5.0
 	github.com/jinzhu/gorm v1.9.14
 	github.com/jroimartin/gocui v0.4.0
 	github.com/mattn/go-runewidth v0.0.9 // indirect

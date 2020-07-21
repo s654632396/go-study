@@ -23,7 +23,7 @@ func main() {
 	}
 	// dec := json.NewDecoder(f)
 	var data []byte
-	var buf []byte = make([]byte, 10)
+	var buf []byte = make([]byte, 1024)
 	for count, err := f.Read(buf); err != io.EOF; count, err = f.Read(buf) {
 		if err != nil {
 			log.Fatal(err)
