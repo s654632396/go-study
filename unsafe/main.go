@@ -60,6 +60,6 @@ func main() {
 	)
 	*pZ = int64(401)
 	log.Println(s.Z)
-	log.Println(unsafe.Sizeof(*s)) // 1+(1)+2+(4)+8=16
+	log.Println(unsafe.Sizeof(*s)) // 1+(3)+4+(0)+2+(6)+8+(0)+8+(0)=32
 
 }
