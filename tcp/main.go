@@ -120,6 +120,8 @@ func handleConnWrite(mc *MyConn) {
 	}
 }
 
+// pack: 打包数据
+// cast(int64, [8]byte) && unshift到data里
 func pack(id int64, data []byte) []byte {
 	ptr := uintptr(unsafe.Pointer(&id))
 	var bs [8]byte
@@ -131,6 +133,7 @@ func pack(id int64, data []byte) []byte {
 	return pdata.Bytes()
 }
 
+// unpack: 解包数据
 func unpack(pdata []byte) (id int64, data []byte) {
 	if len(pdata) == 0 {
 		log.Println("err package data..")
