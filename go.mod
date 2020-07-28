@@ -13,6 +13,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/nsf/termbox-go v0.0.0-20200418040025-38ba6e5628f1 // indirect
 	github.com/pkg/term v0.0.0-20200520122047-c3ffed290a03 // indirect
+	github.com/stretchr/stew v0.0.0-20130812190256-80ef0842b48b
+	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
 	golang.org/x/image v0.0.0-20200618115811-c13761719519 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
