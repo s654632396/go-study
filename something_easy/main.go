@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"strconv"
@@ -9,21 +8,12 @@ import (
 
 func main() {
 
-	var trangle = [][]int{{2}, {3, 4}, {6, 5, 7}, {4, 1, 8, 3}}
 
-	fmt.Println(minimumTotal(trangle))
+
 
 }
 
-// https://leetcode-cn.com/problems/triangle/
-// 三角形最小路径和
-func minimumTotal(triangle [][]int) int {
-	var sum int
-	var depth = len(triangle)
-	var dp = make([][]int, depth)
 
-	return sum
-}
 
 // 全排列
 func permute(nums []int) [][]int {

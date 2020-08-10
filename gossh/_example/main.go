@@ -22,4 +22,3 @@ func main() {
 	var client = gossh.NewSSHClient("127.0.0.1", 22, &config)
 	_ = client.TerminalConnect()
 }
-

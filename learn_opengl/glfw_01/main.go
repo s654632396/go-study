@@ -10,41 +10,47 @@ import (
 /** learn from: https://learnopengl-cn.github.io/01%20Getting%20started/03%20Hello%20Window/ */
 
 func main() {
+
 	mainthread.Run(run)
+
 }
 
 func run() {
 
-	initCh := make(chan bool)
 	var win *glfw.Window
 
 	mainthread.Call(func() {
 		width, height := 640, 480
 		win = initGL(width, height)
-		log.Println(win)
-		initCh<-true
 	})
 
 	mainthread.Call(func() {
-		// Do OpenGL stuff.
-		// 处理输入
-		processInput(win)
+		for {
+			// Do OpenGL stuff.
+			// 处理输入
+			processInput(win)
 
-		// glfwSwapBuffers函数会交换颜色缓冲(它是一个储存着GLFW窗口每一个像素颜色值的大缓冲)
-		// 它在这一迭代中被用来绘制，并且将会作为输出显示在屏幕上。
-		// ### 知识点 ###
-		// ** 双缓冲(Double Buffer) **
-		// 应用程序使用单缓冲绘图时可能会存在图像闪烁的问题。
-		//这是因为生成的图像不是一下子被绘制出来的，而是按照从左到右，由上而下逐像素地绘制而成的。
-		//最终图像不是在瞬间显示给用户，而是通过一步一步生成的，这会导致渲染的结果很不真实。
-		//为了规避这些问题，我们应用双缓冲渲染窗口应用程序。
-		//前缓冲保存着最终输出的图像，它会在屏幕上显示；而所有的的渲染指令都会在后缓冲上绘制。
-		//当所有的渲染指令执行完毕后，我们交换(Swap)前缓冲和后缓冲，这样图像就立即呈显出来，之前提到的不真实感就消除了。
-		win.SwapBuffers()
+			// glfwSwapBuffers函数会交换颜色缓冲(它是一个储存着GLFW窗口每一个像素颜色值的大缓冲)
+			// 它在这一迭代中被用来绘制，并且将会作为输出显示在屏幕上。
+			// ### 知识点 ###
+			// ** 双缓冲(Double Buffer) **
+			// 应用程序使用单缓冲绘图时可能会存在图像闪烁的问题。
+			//这是因为生成的图像不是一下子被绘制出来的，而是按照从左到右，由上而下逐像素地绘制而成的。
+			//最终图像不是在瞬间显示给用户，而是通过一步一步生成的，这会导致渲染的结果很不真实。
+			//为了规避这些问题，我们应用双缓冲渲染窗口应用程序。
+			//前缓冲保存着最终输出的图像，它会在屏幕上显示；而所有的的渲染指令都会在后缓冲上绘制。
+			//当所有的渲染指令执行完毕后，我们交换(Swap)前缓冲和后缓冲，这样图像就立即呈显出来，之前提到的不真实感就消除了。
+			win.SwapBuffers()
 
-		glfw.PollEvents()
-		win.ShouldClose()
+			glfw.PollEvents()
+			if  win.ShouldClose() {
+				win.Destroy()
+				break
+			}
+		}
 	})
+
+
 }
 
 func initGL(w, h int) *glfw.Window {
@@ -52,7 +58,6 @@ func initGL(w, h int) *glfw.Window {
 	if err != nil {
 		panic(err)
 	}
-	defer glfw.Terminate()
 
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
@@ -72,9 +77,10 @@ func initGL(w, h int) *glfw.Window {
 		log.Fatal(err)
 	}
 
-	//glfw.SwapInterval(1) // enable vsync
+	glfw.SwapInterval(1) // enable vsync
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
+
 	return window
 }
 
