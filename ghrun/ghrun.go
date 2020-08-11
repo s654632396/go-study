@@ -54,7 +54,7 @@ type CfgBlock struct {
 }
 
 var (
-	needCPUProfile bool
+	needCPUProfile   bool
 	needTraceProfile bool
 )
 
@@ -125,7 +125,6 @@ func Setup(cf string) {
 		defer trace.Stop()
 	}
 
-
 	// read config file
 	var (
 		data []byte
@@ -167,7 +166,6 @@ func parseCfg(s string) []CfgBlock {
 	if err := json.Unmarshal([]byte(s), &cbs); err != nil {
 		log.Fatalf("Config block parse failed: %s", err)
 	}
-	// log.Printf("%+v \n", cbs)
 	for idx := range cbs {
 		cbs[idx].datas = make(map[string]changeIdentify)
 	}
@@ -179,61 +177,34 @@ func parseCfg(s string) []CfgBlock {
 func ListenBlock(ctx context.Context, cb CfgBlock) {
 
 	go func() {
-		var duration int64
+		var duration time.Duration
 		if cb.ScanTicker < 1 {
-			duration = int64(5 * time.Second)
+			duration = 5 * time.Second
 		} else {
-			duration = cb.ScanTicker * int64(time.Second)
+			duration = time.Duration(cb.ScanTicker) * time.Second
 		}
 		log.Println("scan_ticker =", duration)
+		ticker := time.NewTicker(duration)
 		var cancel context.CancelFunc
+		defer func() {
+			ticker.Stop()
+			if cancel != nil {
+				cancel()
+			}
+		}()
 	END:
 		for {
-			// log.Println("counter run..")
-
-			if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
-				cancel = c
-			}
-
 			select {
-			case <-ctx.Done():
-				if cancel != nil {
-					cancel()
-					time.Sleep(1 * time.Second)
+			case <-ticker.C:
+				//定时执行
+				if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
+					cancel = c
 				}
+			case <-ctx.Done():
 				break END
-			default:
-				time.Sleep(time.Duration(duration))
 			}
 		}
-
 	}()
-
-	// // !!!!! 使用ticker的for-select goroutine会大幅度提高cpu占用率 !!!!!
-	// ticker := time.NewTicker(time.Duration(10 * time.Second))
-
-	// go func(ticker *time.Ticker) {
-	// 	var cancel context.CancelFunc
-
-	// END:
-	// 	for {
-	// 		select {
-	// 		case <-ticker.C:
-	// 			//定时执行
-	// 			log.Println("counter run..")
-	// 			if isUpdated, c := cb.readNestedDirs(ctx, cancel); isUpdated && c != nil {
-	// 				cancel = c
-	// 			}
-	// 		case <-ctx.Done():
-	// 			cancel()
-	// 			log.Println("counter run..")
-	// 			time.Sleep(1 * time.Second)
-	// 			ticker.Stop()
-	// 			break END
-	// 		default:
-	// 		}
-	// 	}
-	// }(ticker)
 
 	return
 }
