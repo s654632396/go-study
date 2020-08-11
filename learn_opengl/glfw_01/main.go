@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	_ "github.com/faiface/glhf"
 	"github.com/faiface/mainthread"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -15,6 +17,28 @@ func main() {
 
 }
 
+var vShaderSrcStr = `
+#version 330 core
+
+layout (location = 0) in vec3 position;
+
+void main()
+{
+    gl_Position = vec4(position.x, position.y, position.z, 1.0);
+}
+`
+
+var fShaderSrcStr = `
+#version 330 core
+
+out vec4 color;
+
+void main()
+{
+    color = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+}
+`
+
 func run() {
 
 	var win *glfw.Window
@@ -25,10 +49,112 @@ func run() {
 	})
 
 	mainthread.Call(func() {
-		for {
+
+		var vshader uint32
+		{
+			vshader = gl.CreateShader(gl.VERTEX_SHADER)
+
+			src, free := gl.Strs(vShaderSrcStr)
+			defer free()
+			var lenSrc = int32(len(vShaderSrcStr))
+			gl.ShaderSource(vshader, 1, src, &lenSrc)
+			gl.CompileShader(vshader)
+			var success int32
+			gl.GetShaderiv(vshader, gl.COMPILE_STATUS, &success)
+			if success == gl.FALSE {
+				var logLen int32
+				gl.GetShaderiv(vshader, gl.INFO_LOG_LENGTH, &logLen)
+				infoLog := make([]byte, logLen)
+				gl.GetShaderInfoLog(vshader, logLen, nil, &infoLog[0])
+				log.Println(
+					fmt.Errorf("error compiling vertex shader: %s", string(infoLog)),
+				)
+			}
+
+		}
+
+		// fragment shader
+		fshader := gl.CreateShader(gl.FRAGMENT_SHADER)
+		{
+
+			src, free := gl.Strs(fShaderSrcStr)
+			defer free()
+			var lenSrc = int32(len(fShaderSrcStr))
+			gl.ShaderSource(fshader, 1, src, &lenSrc)
+			gl.CompileShader(fshader)
+			var success int32
+			gl.GetShaderiv(fshader, gl.COMPILE_STATUS, &success)
+			if success == gl.FALSE {
+				var logLen int32
+				gl.GetShaderiv(fshader, gl.INFO_LOG_LENGTH, &logLen)
+				infoLog := make([]byte, logLen)
+				gl.GetShaderInfoLog(fshader, logLen, nil, &infoLog[0])
+				log.Println(
+					fmt.Errorf("error compiling fragment shader: %s", string(infoLog)),
+				)
+			}
+		}
+
+		shaderProgram := gl.CreateProgram()
+		{
+			gl.AttachShader(shaderProgram, vshader)
+			gl.AttachShader(shaderProgram, fshader)
+			gl.LinkProgram(shaderProgram)
+			var success int32
+			gl.GetProgramiv(shaderProgram, gl.LINK_STATUS, &success)
+			if success == gl.FALSE {
+				var logLen int32
+				gl.GetProgramiv(shaderProgram, gl.INFO_LOG_LENGTH, &logLen)
+
+				infoLog := make([]byte, logLen)
+				gl.GetProgramInfoLog(shaderProgram, logLen, nil, &infoLog[0])
+				log.Println(
+					fmt.Errorf("error linking shader program: %s", string(infoLog)),
+				)
+			}
+			gl.DeleteShader(vshader)
+			gl.DeleteShader(fshader)
+		}
+
+		var bData = []float32{
+			-0.5, -0.5, 0.0, // Left
+			0.5, -0.5, 0.0, // Right
+			0.0, 0.5, 0.0, // Top
+		}
+
+		var vao uint32
+		var vbo uint32
+		gl.GenVertexArrays(1, &vao)
+		gl.GenBuffers(1, &vbo)
+
+		// 1. 绑定VAO
+		gl.BindVertexArray(vao)
+
+		// 2. 把顶点数组复制到缓冲中供OpenGL使用
+		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+		gl.BufferData(gl.ARRAY_BUFFER, len(bData), gl.Ptr(bData), gl.STATIC_DRAW)
+
+		// 3. 设置顶点属性指针
+		gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*int32(len(bData)), gl.PtrOffset(0))
+		gl.EnableVertexArrayAttrib(vao, 0)
+
+		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+
+		// 4. 解绑VAO
+		gl.BindVertexArray(0)
+
+		for !win.ShouldClose() {
 			// Do OpenGL stuff.
 			// 处理输入
 			processInput(win)
+
+			gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+			gl.Clear(gl.COLOR_BUFFER_BIT)
+
+			gl.UseProgram(shaderProgram)
+			gl.BindVertexArray(vao)
+			gl.DrawArrays(gl.TRIANGLES, 0, 3)
+			gl.BindVertexArray(0)
 
 			// glfwSwapBuffers函数会交换颜色缓冲(它是一个储存着GLFW窗口每一个像素颜色值的大缓冲)
 			// 它在这一迭代中被用来绘制，并且将会作为输出显示在屏幕上。
@@ -41,15 +167,18 @@ func run() {
 			//前缓冲保存着最终输出的图像，它会在屏幕上显示；而所有的的渲染指令都会在后缓冲上绘制。
 			//当所有的渲染指令执行完毕后，我们交换(Swap)前缓冲和后缓冲，这样图像就立即呈显出来，之前提到的不真实感就消除了。
 			win.SwapBuffers()
-
 			glfw.PollEvents()
-			if  win.ShouldClose() {
-				win.Destroy()
-				break
-			}
 		}
+
+		gl.DeleteVertexArrays(1, &vao)
+		gl.DeleteBuffers(1, &vbo)
+
+		win.Destroy()
 	})
 
+}
+
+func drawScene() {
 
 }
 
