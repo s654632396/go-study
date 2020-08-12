@@ -58,14 +58,14 @@ func run() {
 
 			glfw.PollEvents()
 		}
-
+		gl.DeleteShader(vao)
 		win.Destroy()
 	})
 
 }
 
 func draw(vao uint32, win *glfw.Window, prog uint32) {
-	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.ClearColor(0.2, 0.3, 0.3, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	gl.UseProgram(prog)
@@ -114,6 +114,8 @@ func initOpenGL() uint32 {
 		panic(err)
 	}
 	gl.Enable(gl.CULL_FACE)
+	//gl.Enable(gl.DEPTH_TEST) // Q: 开启后看不见三角形了.why?
+
 
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Println("OpenGL Version:", version)
@@ -175,7 +177,7 @@ var vertexShaderSrc = `
 #version 330 core
 layout (location = 0) in vec3 position;
 void main() {
-	gl_Position = vec4(position.x, position.y, position.z, 1.0);
+	gl_Position = vec4(position.x, position.y, position.z, 1);
 }
 ` + "\x00"
 
