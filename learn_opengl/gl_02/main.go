@@ -113,6 +113,12 @@ func initOpenGL() uint32 {
 	//gl.Enable(gl.CULL_FACE)
 	//gl.CullFace(gl.FRONT)
 
+	// 线框模式(Wireframe Mode), 可以配置gl.LINE来观察仅绘制了线条的图元
+	// 第一个参数表示我们打算将其应用到所有的三角形的正面和背面，第二个参数告诉我们用线来绘制
+	gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+	// 默认模式
+	// gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Println("OpenGL Version:", version)
 
