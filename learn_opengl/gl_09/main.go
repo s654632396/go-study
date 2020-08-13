@@ -13,6 +13,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
+	"math"
 	"os"
 	"strings"
 	"unsafe"
@@ -70,6 +71,28 @@ func run() {
 			0, 2, 3,
 		}
 		var vao = makeVao(vertex, indices)
+
+		var vertex2 = []float32{
+			-0.5, 0.5, 0, // top-left vertex
+			1, 1, 0, // yellow
+			0, 1, // texture(0,1)
+			0.5, 0.5, 0, // top-right vertex
+			1, 0, 0, // red
+			1, 1, // texture(1,1)
+			-0.5, -0.5, 0, // bottom-left vertex
+			0, 0, 1, // blue
+			0, 0, // texture(0,0)
+			0.5, -0.5, 0, // bottom-right vertex
+			0, 1, 0, // green
+			1, 0, // texture(1,0)
+		}
+
+		var indices2 = []uint32{
+			0, 1, 3,
+			0, 2, 3,
+		}
+
+		var cube = makeVao(vertex2, indices2)
 
 		// make texture 0
 		var tex0 uint32
@@ -131,9 +154,13 @@ func run() {
 			// Do OpenGL stuff.
 			// 处理输入
 			processInput(win)
+			gl.ClearColor(0.2, 0.3, 0.3, 1)
+			gl.Clear(gl.COLOR_BUFFER_BIT)
 
 			runDraw(vao, tex0, tex1, win, program)
-
+			runDraw2(cube, tex0, tex1, win, program)
+			// swap in rendered buffer
+			win.SwapBuffers()
 			glfw.PollEvents()
 		}
 		gl.DeleteShader(vao)
@@ -143,8 +170,6 @@ func run() {
 }
 
 func runDraw(vao uint32, texture0 uint32, texture1 uint32, win *glfw.Window, prog uint32) {
-	gl.ClearColor(0.2, 0.3, 0.3, 1)
-	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, texture0)
@@ -166,7 +191,7 @@ func runDraw(vao uint32, texture0 uint32, texture1 uint32, win *glfw.Window, pro
 	trans1 := mgl32.Translate3D(0.5, -0.5, 0)
 	trans2 := mgl32.HomogRotate3D(mgl32.DegToRad(float32(glfw.GetTime())*50.0), mgl32.Vec3{0, 0, 1})
 	transMat = trans1.Mul4(trans2)
-	// Q: 如果变换是这个顺序呢?
+	// Q: 如果变换是这个顺序呢?  
 	//transMat = trans2.Mul4(trans1)
 
 	transLoc := gl.GetUniformLocation(prog, gl.Str("transform"+"\x00"))
@@ -176,8 +201,36 @@ func runDraw(vao uint32, texture0 uint32, texture1 uint32, win *glfw.Window, pro
 	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 	gl.BindVertexArray(0)
 
-	// swap in rendered buffer
-	win.SwapBuffers()
+}
+
+func runDraw2(vao uint32, texture0 uint32, texture1 uint32, win *glfw.Window, prog uint32) {
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texture0)
+	tex0Loc := gl.GetUniformLocation(prog, gl.Str("ourTexture0"+"\x00"))
+	gl.Uniform1i(tex0Loc, 0)
+
+	gl.ActiveTexture(gl.TEXTURE1)
+	gl.BindTexture(gl.TEXTURE_2D, texture1)
+	tex1Loc := gl.GetUniformLocation(prog, gl.Str("ourTexture1"+"\x00"))
+	gl.Uniform1i(tex1Loc, 1)
+	gl.UseProgram(prog)
+
+	var transMat mgl32.Mat4
+	{
+		trans1 := mgl32.Translate3D(-0.5, 0.5, 0)
+		scaleVar := float32(math.Abs(math.Sin(glfw.GetTime())))
+		trans2 := mgl32.Scale3D(scaleVar, scaleVar, 0)
+		transMat = trans1.Mul4(trans2)
+		log.Println(scaleVar)
+	}
+
+	transLoc := gl.GetUniformLocation(prog, gl.Str("transform"+"\x00"))
+	gl.UniformMatrix4fv(transLoc, 1, false, &transMat[0])
+
+	gl.BindVertexArray(vao)
+	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+	gl.BindVertexArray(0)
+
 }
 
 func initGL(w, h int) *glfw.Window {
