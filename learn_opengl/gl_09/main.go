@@ -72,27 +72,8 @@ func run() {
 		}
 		var vao = makeVao(vertex, indices)
 
-		var vertex2 = []float32{
-			-0.5, 0.5, 0, // top-left vertex
-			1, 1, 0, // yellow
-			0, 1, // texture(0,1)
-			0.5, 0.5, 0, // top-right vertex
-			1, 0, 0, // red
-			1, 1, // texture(1,1)
-			-0.5, -0.5, 0, // bottom-left vertex
-			0, 0, 1, // blue
-			0, 0, // texture(0,0)
-			0.5, -0.5, 0, // bottom-right vertex
-			0, 1, 0, // green
-			1, 0, // texture(1,0)
-		}
-
-		var indices2 = []uint32{
-			0, 1, 3,
-			0, 2, 3,
-		}
-
-		var cube = makeVao(vertex2, indices2)
+		// 第二个箱子
+		var cube = makeVao(vertex, indices)
 
 		// make texture 0
 		var tex0 uint32
