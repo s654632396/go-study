@@ -95,7 +95,7 @@ func (mc *MyChannel) sendTo(id int64, data []byte) {
 // 简易群聊 based on TCP
 //
 func main() {
-	lsn, err := net.Listen("tcp", "127.0.0.1:4300")
+	lsn, err := net.Listen("tcp", "0.0.0.0:14300")
 	if err != nil {
 		panic(err)
 	}

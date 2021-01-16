@@ -4,10 +4,10 @@ import (
 	"fmt"
 	_ "github.com/faiface/glhf"
 	"github.com/faiface/mainthread"
-	_ "github.com/g3n/engine/math32"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
+	_ "github.com/go-gl/mathgl/mgl32"
 	"image"
 	"image/draw"
 	_ "image/jpeg"
@@ -48,7 +48,7 @@ func run() {
 
 	mainthread.Call(func() {
 
-		program = initOpenGL(int32(800), int32(600))
+		program = initOpenGL(int32(width), int32(height))
 
 		var cubeVertex = []float32{
 			-0.5, -0.5, -0.5, 0.0, 0.0,
@@ -165,29 +165,26 @@ func run() {
 
 			runDraw(cube, tex0, tex1, win, program)
 
-			var model mgl32.Mat4
-			model = mgl32.HomogRotate3D(mgl32.DegToRad(-50), mgl32.Vec3{0.5, 1, 0})
 			var view mgl32.Mat4
 			view = mgl32.Translate3D(0, 0, -5)
 			var projection mgl32.Mat4
-			projection = mgl32.Perspective(mgl32.DegToRad(45), float32(screenW)/float32(ScreenH), 0.1, 100)
-
+			projection = mgl32.Perspective(mgl32.DegToRad(45),float32(screenW) / float32(ScreenH), 0.1, 100)
 			{
-				modelLoc := gl.GetUniformLocation(program, gl.Str("model"+"\x00"))
-				gl.UniformMatrix4fv(modelLoc, 1, false, &model[0])
+
+				projectionLoc := gl.GetUniformLocation(program, gl.Str("projection"+"\x00"))
+				gl.UniformMatrix4fv(projectionLoc, 1, false, &projection[0])
 
 				viewLoc := gl.GetUniformLocation(program, gl.Str("view"+"\x00"))
 				gl.UniformMatrix4fv(viewLoc, 1, false, &view[0])
 
-				projectionLoc := gl.GetUniformLocation(program, gl.Str("projection"+"\x00"))
-				gl.UniformMatrix4fv(projectionLoc, 1, false, &projection[0])
 			}
 
 			// swap in rendered buffer
 			win.SwapBuffers()
 			glfw.PollEvents()
 		}
-		gl.DeleteShader(cube)
+		// gl.DeleteShader(cube)
+		gl.DeleteVertexArrays(1, &cube)
 		win.Destroy()
 	})
 
@@ -207,19 +204,41 @@ func runDraw(vao uint32, texture0 uint32, texture1 uint32, win *glfw.Window, pro
 
 	gl.UseProgram(prog)
 
-	time := glfw.GetTime()
-	// local space
-	var transMat mgl32.Mat4
-	{
-		transMat = mgl32.HomogRotate3D(float32(time)*mgl32.DegToRad(50.0), mgl32.Vec3{1, 0, 0.3})
+	var cubePosList = []mgl32.Vec3{
+		{0.0, 0.0, 0.0},
+		{2.0, 5.0, -15.0},
+		{-1.5, -2.2, -2.5},
+		{-3.8, -2.0, -12.3},
+		{2.4, -0.4, -3.5},
+		{-1.7, 3.0, -7.5},
+		{1.3, -2.0, -2.5},
+		{1.5, 2.0, -2.5},
+		{1.5, 0.2, -1.5},
+		{-1.3, 1.0, -1.5},
 	}
-	transLoc := gl.GetUniformLocation(prog, gl.Str("transform"+"\x00"))
-	gl.UniformMatrix4fv(transLoc, 1, false, &transMat[0])
-
+	time := glfw.GetTime()
 	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, 36)
-	gl.BindVertexArray(0)
 
+	for i := 0; i < len(cubePosList); i++ {
+		// local space
+		var model mgl32.Mat4
+		transMat1 := mgl32.Translate3D(cubePosList[i].X(), cubePosList[i].Y(), cubePosList[i].Z())
+		var transMat2 mgl32.Mat4
+		if i % 3 == 0 {
+			transMat2 = mgl32.HomogRotate3D(mgl32.DegToRad(float32(time) * float32(20*i)), mgl32.Vec3{1, 0.3, 0.5})
+		} else {
+			transMat2 = mgl32.HomogRotate3D(mgl32.DegToRad(float32(20*i)), mgl32.Vec3{1, 0.3, 0.5})
+		}
+		model = transMat1.Mul4(transMat2)
+
+		modelLoc := gl.GetUniformLocation(prog, gl.Str("model"+"\x00"))
+		gl.UniformMatrix4fv(modelLoc, 1, false, &model[0])
+
+		gl.DrawArrays(gl.TRIANGLES, 0, 36)
+
+	}
+
+	gl.BindVertexArray(0)
 }
 
 func initGL(w, h int) *glfw.Window {
@@ -310,7 +329,7 @@ func makeVao(vertex []float32) uint32 {
 
 	// unbind the VAO (safe practice so we don't accidentally (mis)configure it later)
 	gl.BindVertexArray(0)
-
+	gl.DeleteBuffers(1, &vbo)
 	return vao
 }
 
@@ -341,14 +360,13 @@ layout (location = 2) in vec2 texCoord;
 
 out vec2 TexCoord;
 
-uniform mat4 transform;
 uniform mat4 model;	
 uniform mat4 view;
 uniform mat4 projection;
 
 
 void main() {
-	gl_Position = projection * view * model * transform * vec4(position, 1.0);
+	gl_Position = projection * view * model *  vec4(position, 1.0);
 	// gl_Position =  vec4(position, 1);
  	TexCoord = vec2(texCoord.x, 1.0 - texCoord.y);
 }
