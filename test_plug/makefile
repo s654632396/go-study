@@ -16,7 +16,7 @@ pre_build:
 	
 
 clean: pre_build
-	[ -d "${BUILD_PATH}" ] && rm -rf ${BUILD_PATH}/{*.so,${MAIN_OUTPUT_FILE}}	
+	[ -d "${BUILD_PATH}" ] && rm -rf ${BUILD_PATH}
 
 .Phony: run clean pre_build
 
