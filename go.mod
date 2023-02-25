@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-tty v0.0.3 // indirect
 	github.com/nsf/termbox-go v0.0.0-20200418040025-38ba6e5628f1 // indirect
 	github.com/pkg/term v0.0.0-20200520122047-c3ffed290a03 // indirect
-	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
+	golang.org/x/crypto v0.1.0
 	golang.org/x/image v0.0.0-20200801110659-972c09e46d76 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
